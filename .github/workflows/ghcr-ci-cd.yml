@@ -1,0 +1,432 @@
+name: 'GHCR CI/CD Pipeline'
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Security and Code Quality
+  security-scan:
+    name: 'Security Scan'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install security tools
+        run: |
+          pip install bandit safety
+          npm install -g npm-audit-ci
+
+      - name: Run Bandit security scan
+        run: |
+          bandit -r . -ll -i -x './.venv,./venv,./tests,./services/youtube-downloader/node_modules'
+
+      - name: Run Python dependency security check
+        run: |
+          pip install -r requirements.txt
+          safety check
+
+      - name: Run Node.js security audit
+        working-directory: services/youtube-downloader
+        run: |
+          npm ci
+          npm audit --audit-level high
+
+  # Unit and Integration Tests
+  test:
+    name: 'Test Suite'
+    runs-on: ubuntu-latest
+    needs: security-scan
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: services/youtube-downloader/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r tests/requirements.txt
+
+      - name: Install Node.js dependencies
+        working-directory: services/youtube-downloader
+        run: npm ci
+
+      - name: Set environment variables for tests
+        run: |
+          echo "API_KEY=test-api-key-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "DB_TOKEN=test-db-token-${{ github.run_id }}" >> $GITHUB_ENV
+          echo "PORT=8000" >> $GITHUB_ENV
+          echo "STAGING_RAILWAY_URL=https://test-staging.com" >> $GITHUB_ENV
+          echo "PROD_RAILWAY_URL=https://test-prod.com" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Run Python unit tests
+        run: |
+          python -m pytest tests/unit/ -v --cov=. --cov-report=xml --cov-report=html
+
+      - name: Run Node.js unit tests
+        working-directory: services/youtube-downloader
+        run: npm test
+
+      - name: Run integration tests
+        run: |
+          python -m pytest tests/integration/ -v
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  # Build and Test Docker Images
+  docker-build-test:
+    name: 'Docker Build & Test'
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{branch}}-{{sha}},enable={{is_default_branch}}
+
+      - name: Build Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_NUMBER=${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
+
+      - name: Load and test Docker image
+        run: |
+          docker load --input /tmp/image.tar
+          
+          # Test image can start
+          docker run --rm -d \
+            --name test-container \
+            -p 8080:8080 \
+            -e API_KEY=test-key \
+            -e DB_TOKEN=test-token \
+            -e PORT=8080 \
+            ${{ steps.meta.outputs.tags }} | head -1
+          
+          # Wait for container to be ready
+          sleep 10
+          
+          # Test health endpoints
+          curl -f http://localhost:8080/health || exit 1
+          curl -f http://localhost:8080/ || exit 1
+          
+          # Clean up
+          docker stop test-container
+
+  # Container Security Scan
+  container-security:
+    name: 'Container Security Scan'
+    runs-on: ubuntu-latest
+    needs: docker-build-test
+    
+    steps:
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load --input /tmp/image.tar
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ needs.docker-build-test.outputs.image-tag }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Deploy to GHCR
+  deploy-ghcr:
+    name: 'Deploy to GHCR'
+    runs-on: ubuntu-latest
+    needs: [docker-build-test, container-security]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=build-${{ github.run_number }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_NUMBER=${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Update README with deployment info
+        run: |
+          echo "## 🚀 Latest Deployment" >> deployment-info.md
+          echo "" >> deployment-info.md
+          echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}\`" >> deployment-info.md
+          echo "- **Digest**: \`${{ steps.push.outputs.digest }}\`" >> deployment-info.md
+          echo "- **Build**: #${{ github.run_number }}" >> deployment-info.md
+          echo "- **Commit**: \`${{ github.sha }}\`" >> deployment-info.md
+          echo "- **Date**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> deployment-info.md
+          echo "" >> deployment-info.md
+          echo "### Quick Deploy Commands" >> deployment-info.md
+          echo "" >> deployment-info.md
+          echo "\`\`\`bash" >> deployment-info.md
+          echo "# Pull the image" >> deployment-info.md
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}" >> deployment-info.md
+          echo "" >> deployment-info.md
+          echo "# Run locally" >> deployment-info.md
+          echo "docker run -p 8080:8080 \\" >> deployment-info.md
+          echo "  -e API_KEY=your-api-key \\" >> deployment-info.md
+          echo "  -e DB_TOKEN=your-db-token \\" >> deployment-info.md
+          echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}" >> deployment-info.md
+          echo "\`\`\`" >> deployment-info.md
+          
+          cat deployment-info.md
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-info
+          path: deployment-info.md
+
+  # Cloud Run Deploy (Optional)
+  deploy-cloud-run:
+    name: 'Deploy to Cloud Run'
+    runs-on: ubuntu-latest
+    needs: deploy-ghcr
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Google Cloud Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use gcloud
+        run: gcloud auth configure-docker
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          gcloud run deploy sync-scribe-studio-api \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }} \
+            --platform managed \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 2Gi \
+            --cpu 2 \
+            --concurrency 100 \
+            --max-instances 10 \
+            --set-env-vars="PORT=8080" \
+            --set-env-vars="BUILD_NUMBER=${{ github.run_number }}" \
+            --timeout 300 \
+            --service-account ${{ secrets.CLOUD_RUN_SA }} \
+            --quiet
+
+  # Notification and Summary
+  notify:
+    name: 'Deployment Notification'
+    runs-on: ubuntu-latest
+    needs: [deploy-ghcr, deploy-cloud-run]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Download deployment info
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-info
+          path: .
+
+      - name: Create deployment summary
+        run: |
+          echo "# 🚀 Sync Scribe Studio API Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.deploy-ghcr.result }}" == "success" ]; then
+            echo "✅ **GHCR Deployment**: Successful" >> $GITHUB_STEP_SUMMARY
+            echo "📦 **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **GHCR Deployment**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.deploy-cloud-run.result }}" == "success" ]; then
+            echo "☁️ **Cloud Run Deployment**: Successful" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.deploy-cloud-run.result }}" == "skipped" ]; then
+            echo "⏭️ **Cloud Run Deployment**: Skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Cloud Run Deployment**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat deployment-info.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Post deployment status to commit
+        uses: actions/github-script@v7
+        if: github.event_name == 'push'
+        with:
+          script: |
+            const deploymentStatus = '${{ needs.deploy-ghcr.result }}' === 'success' ? '✅ Deployed' : '❌ Failed';
+            const imageUrl = `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}`;
+            
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: '${{ needs.deploy-ghcr.result }}' === 'success' ? 'success' : 'failure',
+              target_url: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`,
+              description: `${deploymentStatus} - ${imageUrl}`,
+              context: 'ci/ghcr-deployment'
+            });

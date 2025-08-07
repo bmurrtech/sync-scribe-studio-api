@@ -1,0 +1,78 @@
+# CodeQL Configuration
+# Configures CodeQL analysis for security scanning
+# More info: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning
+
+name: "Security-focused CodeQL config"
+
+# Disable default queries and use custom security-focused ones
+disable-default-queries: false
+
+# Query suites and individual queries to run
+queries:
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality
+    uses: security-and-quality
+
+# Additional query packs
+packs:
+  # Python security queries
+  python:
+    - codeql/python-queries:Security
+    - codeql/python-queries:AlertSuppression
+    
+  # JavaScript security queries  
+  javascript:
+    - codeql/javascript-queries:Security
+    - codeql/javascript-queries:AlertSuppression
+
+# Path filters
+paths-ignore:
+  - node_modules/
+  - "**/node_modules/**"
+  - "**/*.min.js"
+  - "**/*.bundle.js"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/coverage/**"
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  - tests/fixtures/**
+  - "**/.git/**"
+  - docs/
+  - fonts/
+  - pm/
+  
+paths:
+  - "**/*.py"
+  - "**/*.js"
+  - "!tests/**/*.test.js"
+  - "!tests/**/*.spec.js"
+
+# External configuration for specific languages
+external-repository-token-settings:
+  # Configure external repository access if needed
+  github.com: ${{ secrets.GITHUB_TOKEN }}
+
+# Language-specific configuration
+database:
+  # Optimize for security analysis
+  finalize-database: true
+  
+# Custom queries directory
+query-filters:
+  - exclude:
+      id: experimental/disabled-by-default
+      
+# ML models for enhanced security detection
+ml-powered-queries: true
+
+# Analysis configuration
+analysis:
+  # Run additional security-focused analysis
+  security-severity: medium
+  
+# Build configuration
+build:
+  # Skip build steps for dependency analysis only
+  skip-analysis: false

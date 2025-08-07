@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  youtube-downloader:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000
+    volumes:
+      - ./logs:/usr/src/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - youtube-downloader-network
+
+networks:
+  youtube-downloader-network:
+    driver: bridge

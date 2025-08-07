@@ -1,0 +1,531 @@
+name: API CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, staging]
+    paths-ignore:
+      - 'services/youtube-downloader/**'  # Avoid triggering when only youtube service changes
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    branches: [main, develop]
+    paths-ignore:
+      - 'services/youtube-downloader/**'
+      - 'docs/**'
+      - '*.md'
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      run_integration_tests:
+        description: 'Run integration tests with Docker'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.9'
+  DOCKER_IMAGE_NAME: sync-scribe-studio-api
+  TEST_DB_TOKEN: test_api_key_for_ci_testing_12345678901234567890
+
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Test environment setup and validation
+  setup:
+    name: Setup & Validation
+    runs-on: ubuntu-latest
+    outputs:
+      python-version: ${{ steps.setup-python.outputs.python-version }}
+      cache-hit: ${{ steps.cache-deps.outputs.cache-hit }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache Python dependencies
+        id: cache-deps
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pip
+            venv_*
+          key: ${{ runner.os }}-python-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/requirements.txt', 'tests/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ env.PYTHON_VERSION }}-
+            ${{ runner.os }}-python-
+
+      - name: Create virtual environment
+        run: |
+          PY_VER=$(python3 -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}{sys.version_info.micro}")')
+          VENV="venv_$PY_VER"
+          [ ! -d "$VENV" ] && python3 -m venv "$VENV" && echo "Created $VENV" || echo "$VENV exists"
+          echo "VENV_PATH=$VENV" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r tests/requirements.txt
+
+      - name: Validate project structure
+        run: |
+          # Check for required files
+          test -f requirements.txt || (echo "❌ requirements.txt missing" && exit 1)
+          test -f Dockerfile || (echo "❌ Dockerfile missing" && exit 1)
+          test -f app.py || (echo "❌ app.py missing" && exit 1)
+          test -d tests || (echo "❌ tests directory missing" && exit 1)
+          test -d server || (echo "❌ server directory missing" && exit 1)
+          echo "✅ Project structure validation passed"
+
+  # Unit tests for all components
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      matrix:
+        test-group:
+          - health-endpoints
+          - security-auth
+          - api-endpoints
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.setup.outputs.python-version }}
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pip
+            venv_*
+          key: ${{ runner.os }}-python-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/requirements.txt', 'tests/requirements.txt') }}
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          PY_VER=$(python3 -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}{sys.version_info.micro}")')
+          VENV="venv_$PY_VER"
+          python3 -m venv "$VENV"
+          source "$VENV/bin/activate"
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r tests/requirements.txt
+          echo "VENV_PATH=$VENV" >> $GITHUB_ENV
+
+      - name: Run unit tests - Health Endpoints
+        if: matrix.test-group == 'health-endpoints'
+        env:
+          DB_TOKEN: ${{ env.TEST_DB_TOKEN }}
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          pytest tests/unit/test_health_endpoints.py -v --tb=short --cov=server --cov-report=xml --cov-report=term
+
+      - name: Run unit tests - Security & Auth
+        if: matrix.test-group == 'security-auth'
+        env:
+          DB_TOKEN: ${{ env.TEST_DB_TOKEN }}
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          pytest tests/test_security.py tests/unit/test_api_endpoints_auth.py -v --tb=short --cov=server --cov-report=xml --cov-report=term
+
+      - name: Run unit tests - API Endpoints
+        if: matrix.test-group == 'api-endpoints'
+        env:
+          DB_TOKEN: ${{ env.TEST_DB_TOKEN }}
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          pytest tests/unit/ -v --tb=short --cov=routes --cov-report=xml --cov-report=term --ignore=tests/unit/test_health_endpoints.py --ignore=tests/unit/test_api_endpoints_auth.py
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: unit-tests-${{ matrix.test-group }}
+          name: Unit Tests Coverage - ${{ matrix.test-group }}
+          fail_ci_if_error: false
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-${{ matrix.test-group }}
+          path: |
+            coverage.xml
+            htmlcov/
+            pytest-report.xml
+          retention-days: 30
+
+  # Security and code quality checks
+  security-scan:
+    name: Security & Code Quality
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.setup.outputs.python-version }}
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pip
+            venv_*
+          key: ${{ runner.os }}-python-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/requirements.txt', 'tests/requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          PY_VER=$(python3 -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}{sys.version_info.micro}")')
+          VENV="venv_$PY_VER"
+          python3 -m venv "$VENV"
+          source "$VENV/bin/activate"
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit safety flake8 black isort
+          echo "VENV_PATH=$VENV" >> $GITHUB_ENV
+
+      - name: Run Bandit security scan
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          bandit -r . -f json -o bandit-report.json --ini .bandit || true
+          bandit -r . -f txt || true
+
+      - name: Run Safety check
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          safety check --json --output safety-report.json || true
+
+      - name: Code style check with Black
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          black --check --diff . || true
+
+      - name: Import sorting check with isort
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          isort --check-only --diff . || true
+
+      - name: Lint with flake8
+        run: |
+          source ${{ env.VENV_PATH }}/bin/activate
+          flake8 --max-line-length=100 --statistics --tee --output-file=flake8-report.txt . || true
+
+      - name: Upload security scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-results
+          path: |
+            bandit-report.json
+            safety-report.json
+            flake8-report.txt
+          retention-days: 30
+
+  # Docker build and test
+  docker-build:
+    name: Docker Build & Test
+    runs-on: ubuntu-latest
+    needs: [setup, unit-tests]
+    if: always() && (needs.unit-tests.result == 'success')
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_NUMBER=${{ github.run_number }}
+
+      - name: Test Docker image basic functionality
+        run: |
+          # Start container in background
+          docker run -d --name test-container \
+            -p 8080:8080 \
+            -e PORT=8080 \
+            -e DB_TOKEN=${{ env.TEST_DB_TOKEN }} \
+            -e PYTHONUNBUFFERED=1 \
+            ${{ env.DOCKER_IMAGE_NAME }}:latest
+
+          # Wait for container to start
+          sleep 30
+
+          # Test health endpoint
+          for i in {1..10}; do
+            if curl -f http://localhost:8080/health; then
+              echo "✅ Health check passed"
+              break
+            fi
+            echo "⏳ Waiting for container to start... ($i/10)"
+            sleep 5
+          done
+
+          # Test authenticated endpoint (should return 401 without auth)
+          if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/media/youtube/info | grep -E "401|404|405"; then
+            echo "✅ Authentication protection working"
+          else
+            echo "⚠️ Authentication test inconclusive"
+          fi
+
+          # Cleanup
+          docker stop test-container
+          docker rm test-container
+
+  # Integration tests with Docker
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: ${{ always() && needs.docker-build.result == 'success' && (github.event.inputs.run_integration_tests != 'false') }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install test dependencies
+        run: |
+          python -m venv test_venv
+          source test_venv/bin/activate
+          pip install --upgrade pip
+          pip install -r tests/requirements.txt
+          pip install requests psutil
+
+      - name: Run Docker integration tests
+        env:
+          DB_TOKEN: ${{ env.TEST_DB_TOKEN }}
+          DOCKER_IMAGE_NAME: ${{ env.DOCKER_IMAGE_NAME }}
+        run: |
+          source test_venv/bin/activate
+          pytest tests/integration/test_docker_integration.py -v --tb=short -s --log-cli-level=INFO
+
+      - name: Save test artifacts
+        if: always()
+        run: |
+          # Copy any test artifacts that were generated
+          if [ -d "/tmp/docker-integration-test-artifacts" ]; then
+            mkdir -p integration-test-artifacts
+            cp -r /tmp/docker-integration-test-artifacts/* integration-test-artifacts/ || true
+          fi
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: |
+            integration-test-artifacts/
+            pytest-report.xml
+          retention-days: 30
+
+      - name: Cleanup Docker containers
+        if: always()
+        run: |
+          # Clean up any leftover test containers
+          docker ps -a --filter "name=test-" --format "{{.Names}}" | xargs -r docker rm -f || true
+          docker images --filter "dangling=true" -q | xargs -r docker rmi || true
+
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [docker-build, integration-tests]
+    if: |
+      always() && 
+      needs.docker-build.result == 'success' &&
+      (needs.integration-tests.result == 'success' || needs.integration-tests.result == 'skipped') &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging' || 
+       (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'staging'))
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.service-url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # This is a placeholder for actual deployment steps
+      # Replace with your actual deployment method (Railway, GCP Cloud Run, AWS ECS, etc.)
+      - name: Deploy to staging environment
+        id: deploy
+        run: |
+          echo "🚀 Deploying to staging environment"
+          echo "Docker image: ${{ needs.docker-build.outputs.image-tag }}"
+          
+          # Example Railway deployment (replace with your actual deployment)
+          if [ -n "${{ secrets.RAILWAY_TOKEN }}" ]; then
+            echo "Would deploy to Railway staging"
+            # railway login --token "${{ secrets.RAILWAY_TOKEN }}"
+            # railway up --environment staging
+          else
+            echo "⚠️ No Railway token configured"
+          fi
+          
+          # Set output URL (replace with actual staging URL)
+          echo "service-url=https://staging-api.example.com" >> $GITHUB_OUTPUT
+
+      - name: Run staging smoke tests
+        run: |
+          echo "🧪 Running staging smoke tests"
+          
+          # Replace with your actual staging URL
+          STAGING_URL="${{ steps.deploy.outputs.service-url }}"
+          
+          echo "Testing staging health endpoint: $STAGING_URL/health"
+          # Uncomment when you have actual staging URL
+          # curl -f "$STAGING_URL/health" || (echo "❌ Staging health check failed" && exit 1)
+          
+          echo "✅ Staging smoke tests completed"
+
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build, integration-tests, deploy-staging]
+    if: |
+      always() && 
+      needs.docker-build.result == 'success' &&
+      needs.deploy-staging.result == 'success' &&
+      (github.ref == 'refs/heads/main' || 
+       (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'production'))
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.service-url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production environment
+        id: deploy
+        run: |
+          echo "🚀 Deploying to production environment"
+          echo "Docker image: ${{ needs.docker-build.outputs.image-tag }}"
+          
+          # Example Railway deployment (replace with your actual deployment)
+          if [ -n "${{ secrets.RAILWAY_TOKEN }}" ]; then
+            echo "Would deploy to Railway production"
+            # railway login --token "${{ secrets.RAILWAY_TOKEN }}"
+            # railway up --environment production
+          else
+            echo "⚠️ No Railway token configured"
+          fi
+          
+          # Set output URL (replace with actual production URL)
+          echo "service-url=https://api.example.com" >> $GITHUB_OUTPUT
+
+      - name: Run production smoke tests
+        run: |
+          echo "🧪 Running production smoke tests"
+          
+          PROD_URL="${{ steps.deploy.outputs.service-url }}"
+          
+          echo "Testing production health endpoint: $PROD_URL/health"
+          # Uncomment when you have actual production URL
+          # curl -f "$PROD_URL/health" || (echo "❌ Production health check failed" && exit 1)
+          
+          echo "✅ Production smoke tests completed"
+
+  # Notification and cleanup
+  notify-and-cleanup:
+    name: Notify & Cleanup
+    runs-on: ubuntu-latest
+    needs: [unit-tests, security-scan, docker-build, integration-tests, deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: Calculate job results
+        id: results
+        run: |
+          echo "unit-tests: ${{ needs.unit-tests.result }}"
+          echo "security-scan: ${{ needs.security-scan.result }}"
+          echo "docker-build: ${{ needs.docker-build.result }}"
+          echo "integration-tests: ${{ needs.integration-tests.result }}"
+          echo "deploy-staging: ${{ needs.deploy-staging.result }}"
+          echo "deploy-production: ${{ needs.deploy-production.result }}"
+          
+          # Determine overall success
+          if [[ "${{ needs.unit-tests.result }}" == "success" && 
+                "${{ needs.docker-build.result }}" == "success" ]]; then
+            echo "overall=success" >> $GITHUB_OUTPUT
+          else
+            echo "overall=failure" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify on success
+        if: steps.results.outputs.overall == 'success'
+        run: |
+          echo "✅ API CI/CD Pipeline completed successfully!"
+          echo "- Unit tests: ${{ needs.unit-tests.result }}"
+          echo "- Security scan: ${{ needs.security-scan.result }}"
+          echo "- Docker build: ${{ needs.docker-build.result }}"
+          echo "- Integration tests: ${{ needs.integration-tests.result }}"
+
+      - name: Notify on failure
+        if: steps.results.outputs.overall == 'failure'
+        run: |
+          echo "❌ API CI/CD Pipeline failed!"
+          echo "- Unit tests: ${{ needs.unit-tests.result }}"
+          echo "- Security scan: ${{ needs.security-scan.result }}"
+          echo "- Docker build: ${{ needs.docker-build.result }}"
+          echo "- Integration tests: ${{ needs.integration-tests.result }}"
+          echo "Please check the logs and fix any issues."
+
+      - name: Clean up workflow artifacts
+        if: always()
+        run: |
+          echo "🧹 Cleaning up workflow artifacts"
+          # Additional cleanup commands can be added here

@@ -1,0 +1,78 @@
+# Dependency Review Configuration
+# Controls how dependency review action behaves
+# More info: https://docs.github.com/en/code-security/supply-chain-security
+
+# License configuration
+allow-licenses:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+  - GPL-2.0
+  - GPL-3.0
+  - LGPL-2.1
+  - LGPL-3.0
+
+deny-licenses:
+  - AGPL-1.0
+  - AGPL-3.0
+  - GPL-1.0+
+  - LGPL-2.0+
+
+# Vulnerability severity threshold
+fail-on-severity: high
+
+# GHSA (GitHub Security Advisory) configuration
+fail-on-scopes:
+  - runtime
+  - development
+
+# Allow list for packages (useful for internal packages)
+allow-dependencies-licenses:
+  # Allow specific packages even with restrictive licenses
+  # - package-name: license-name
+
+# Package allow/deny lists
+allow-packages:
+  # Internal or trusted packages that should always be allowed
+  - name: "@company/*"
+
+deny-packages:
+  # Known problematic packages
+  - name: "event-stream"
+    reason: "Known malicious package"
+  - name: "eslint-scope"
+    version: "3.7.2"
+    reason: "Compromised version"
+
+# Configuration for specific ecosystems
+config:
+  # Python/pip configuration
+  pip:
+    vulnerability-check: true
+    license-check: true
+  
+  # Node.js/npm configuration  
+  npm:
+    vulnerability-check: true
+    license-check: true
+    
+  # Docker configuration
+  docker:
+    vulnerability-check: true
+
+# Comment configuration
+comment-summary-in-pr: on-failure
+comment-summary-in-pr-on-failure: true
+
+# Retry configuration
+retry-on-snapshot-warnings: true
+retry-on-snapshot-warnings-timeout: 120
+
+# Base and head refs
+base-ref: ${{ github.event.pull_request.base.sha }}
+head-ref: ${{ github.event.pull_request.head.sha }}
+
+# External config file (optional)
+# external-config-file: .github/dependency-review-config.json

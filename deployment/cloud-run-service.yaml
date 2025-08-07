@@ -1,0 +1,139 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: sync-scribe-studio-api
+  annotations:
+    # Cloud Run annotations for production deployment
+    run.googleapis.com/ingress: all  # Allow all ingress traffic
+    run.googleapis.com/execution-environment: gen2  # Use 2nd generation execution environment
+    run.googleapis.com/cpu-throttling: "true"  # Enable CPU throttling for cost optimization
+spec:
+  template:
+    metadata:
+      annotations:
+        # Resource limits optimized for media processing
+        run.googleapis.com/memory: "2Gi"
+        run.googleapis.com/cpu: "1000m"  # 1 CPU
+        
+        # Scaling configuration
+        autoscaling.knative.dev/minScale: "0"   # Scale to zero when idle
+        autoscaling.knative.dev/maxScale: "10"  # Maximum 10 instances
+        
+        # Startup and health check configuration
+        run.googleapis.com/startup-probe-timeout: "240s"  # 4 minutes for FFmpeg init
+        run.googleapis.com/health-check-timeout: "30s"
+        
+        # Container lifecycle
+        run.googleapis.com/timeout: "900s"  # 15-minute request timeout for large media files
+        
+        # Security and execution
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/sandbox: gvisor
+        
+        # Logging and observability
+        run.googleapis.com/client-name: "cloud-console"
+        
+    spec:
+      # Non-root security context
+      serviceAccountName: sync-scribe-studio-api@PROJECT_ID.iam.gserviceaccount.com
+      
+      containerConcurrency: 4  # Handle up to 4 concurrent requests per instance
+      timeoutSeconds: 900      # 15-minute timeout for media processing
+      
+      containers:
+      - name: sync-scribe-studio-api
+        image: gcr.io/PROJECT_ID/sync-scribe-studio-api:latest
+        
+        ports:
+        - name: http1
+          containerPort: 8080
+        
+        env:
+        # Core application configuration
+        - name: PORT
+          value: "8080"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+          
+        # Gunicorn configuration for Cloud Run
+        - name: GUNICORN_WORKERS
+          value: "2"  # Limited workers for memory constraints
+        - name: GUNICORN_TIMEOUT
+          value: "300"  # 5-minute worker timeout
+          
+        # Application limits
+        - name: MAX_QUEUE_LENGTH
+          value: "50"  # Limit queue to prevent memory issues
+          
+        # Whisper configuration (using tmpfs)
+        - name: WHISPER_CACHE_DIR
+          value: "/tmp/whisper_cache"
+          
+        # Optional: YouTube microservice URL (if deployed separately)
+        # - name: YOUTUBE_SERVICE_URL
+        #   value: "https://youtube-service-hash-uc.a.run.app"
+        
+        resources:
+          limits:
+            # Resource limits for production
+            cpu: 1000m      # 1 CPU core
+            memory: 2Gi     # 2GB RAM for FFmpeg operations
+          requests:
+            cpu: 100m       # Minimum 0.1 CPU
+            memory: 512Mi   # Minimum 512MB RAM
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 8  # Allow up to 4 minutes for FFmpeg/Whisper initialization
+          successThreshold: 1
+        
+        # Volume mounts for stateless operation (tmpfs only)
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
+        - name: whisper-cache
+          mountPath: /tmp/whisper_cache
+      
+      # Volumes using tmpfs (in-memory, stateless)
+      volumes:
+      - name: tmp-volume
+        emptyDir:
+          sizeLimit: 1Gi    # 1GB limit for /tmp
+          medium: Memory    # Use tmpfs (in-memory filesystem)
+      - name: whisper-cache  
+        emptyDir:
+          sizeLimit: 512Mi  # 512MB for Whisper model cache
+          medium: Memory    # Use tmpfs (in-memory filesystem)
+      
+      # Traffic configuration
+      traffic:
+      - percent: 100
+        latestRevision: true

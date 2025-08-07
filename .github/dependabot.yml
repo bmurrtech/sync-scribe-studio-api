@@ -1,0 +1,180 @@
+# GitHub Dependabot Configuration
+# Automates dependency updates for enhanced security and maintenance
+# More info: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Python dependencies (main Flask API)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Los_Angeles"
+    target-branch: "develop"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "bmurrtech"
+    assignees:
+      - "bmurrtech"
+    commit-message:
+      prefix: "deps(python)"
+      prefix-development: "deps-dev(python)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+      - "security"
+    # Group dependencies by type for cleaner PRs
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Pin vulnerable packages to specific versions if needed
+    ignore:
+      # Ignore major version updates for core dependencies
+      - dependency-name: "flask"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "werkzeug"
+        update-types: ["version-update:semver-major"]
+
+  # Python test dependencies
+  - package-ecosystem: "pip"
+    directory: "/tests"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "America/Los_Angeles"
+    target-branch: "develop"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "bmurrtech"
+    commit-message:
+      prefix: "deps(test-python)"
+    labels:
+      - "dependencies"
+      - "python"
+      - "testing"
+
+  # Node.js dependencies (YouTube Downloader microservice)
+  - package-ecosystem: "npm"
+    directory: "/services/youtube-downloader"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "America/Los_Angeles"
+    target-branch: "develop"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "bmurrtech"
+    assignees:
+      - "bmurrtech"
+    commit-message:
+      prefix: "deps(nodejs)"
+      prefix-development: "deps-dev(nodejs)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "nodejs"
+      - "youtube-downloader"
+      - "security"
+    # Group Node.js dependencies
+    groups:
+      production-dependencies:
+        patterns:
+          - "express*"
+          - "ytdl-core"
+          - "cors"
+          - "helmet"
+          - "winston"
+          - "joi"
+        update-types:
+          - "minor"
+          - "patch"
+      development-dependencies:
+        patterns:
+          - "jest*"
+          - "@jest/*"
+          - "nodemon"
+          - "eslint*"
+          - "prettier"
+          - "supertest"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore problematic or deprecated packages
+    ignore:
+      - dependency-name: "ytdl-core"
+        update-types: ["version-update:semver-major"]
+      # Ignore until project is ready for major Node.js version updates
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "09:00"
+      timezone: "America/Los_Angeles"
+    target-branch: "develop"
+    open-pull-requests-limit: 2
+    reviewers:
+      - "bmurrtech"
+    commit-message:
+      prefix: "deps(docker)"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+
+  # Docker dependencies for microservice
+  - package-ecosystem: "docker"
+    directory: "/services/youtube-downloader"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "10:00"
+      timezone: "America/Los_Angeles"
+    target-branch: "develop"
+    open-pull-requests-limit: 2
+    reviewers:
+      - "bmurrtech"
+    commit-message:
+      prefix: "deps(docker-microservice)"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "youtube-downloader"
+
+  # GitHub Actions workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "09:00"
+      timezone: "America/Los_Angeles"
+    target-branch: "develop"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "bmurrtech"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci/cd"

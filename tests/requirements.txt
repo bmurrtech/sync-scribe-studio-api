@@ -1,0 +1,79 @@
+pytest
+pytest-flask
+pytest-mock
+pytest-cov
+
+# Testing Requirements for YouTube Integration Test Suite
+#
+# Install with: pip install -r tests/requirements.txt
+
+# Core testing framework
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.10.0
+pytest-timeout>=2.1.0
+pytest-xdist>=3.0.0  # For parallel test execution
+
+# HTTP testing
+requests>=2.28.0
+requests-mock>=1.10.0
+
+# Flask testing
+Flask>=2.2.0
+pytest-flask>=1.2.0
+
+# Mock and patch utilities
+responses>=0.22.0
+
+# Test coverage (optional but recommended)
+pytest-cov>=4.0.0
+coverage>=7.0.0
+
+# Memory profiling for performance tests
+psutil>=5.9.0
+
+# JSON schema validation for API response testing
+jsonschema>=4.0.0
+
+# Environment variable management for tests
+python-dotenv>=1.0.0
+
+# HTML test reports
+pytest-html>=3.1.0
+
+# Test result formatting
+pytest-json-report>=1.5.0
+
+# Additional utilities for testing
+freezegun>=1.2.0  # For time mocking
+factory-boy>=3.2.0  # For test data generation
+Faker>=18.0.0  # For generating fake test data
+
+# Network testing utilities
+httpretty>=1.1.4
+
+# Async testing support
+aiohttp>=3.8.0
+aioresponses>=0.7.4
+
+# Date/time utilities for tests
+python-dateutil>=2.8.2
+
+# Color output in terminal
+colorama>=0.4.6
+
+# Development and debugging
+ipdb>=0.13.0  # Enhanced debugger
+rich>=13.0.0  # Rich text and beautiful formatting
+
+# Security testing
+bandit>=1.7.0
+safety>=2.0.0
+
+# Code quality
+flake8>=5.0.0
+black>=22.0.0
+isort>=5.10.0
+
+# YAML support for test configuration
+PyYAML>=6.0

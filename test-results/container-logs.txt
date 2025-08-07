@@ -1,0 +1,17 @@
+=== YouTube Downloader Service Starting ===
+Node.js Version: v18.20.8
+Environment: production
+Port: 3001
+YTDL Network Timeout: 60000ms
+Starting validation and setup...
+Validating environment variables...
+Environment validation passed ✓
+Setting up directories...
+Directories setup complete ✓
+Testing network connectivity...
+Network connectivity test passed ✓
+=== Starting YouTube Downloader Service ===
+Service starting on port 3001...
+Process ID: 6
+Timestamp: Thu Aug  7 14:09:28 UTC 2025
+

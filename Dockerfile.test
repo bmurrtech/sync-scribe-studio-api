@@ -1,0 +1,57 @@
+# Simple Test Dockerfile for Cloud Run Validation
+# This is a minimal version focused on testing Cloud Run features
+
+FROM python:3.9-slim
+
+# Build argument for semantic versioning
+ARG BUILD_NUMBER
+ENV BUILD_NUMBER=${BUILD_NUMBER}
+
+# Cloud Run port configuration (defaults to 8080)
+ENV PORT=8080
+
+# Install minimal dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir gunicorn flask && \
+    pip install --no-cache-dir -r requirements.txt || pip install --no-cache-dir flask gunicorn && \
+    rm -rf /root/.cache/pip
+
+# Switch to non-root user
+USER appuser
+
+# Copy essential files
+COPY --chown=appuser:appuser version.py .
+COPY --chown=appuser:appuser simple_test_app.py .
+COPY --chown=appuser:appuser entrypoint.sh .
+
+# Make entrypoint executable
+USER root
+RUN chmod +x /app/entrypoint.sh
+USER appuser
+
+# Expose dynamic port for Cloud Run compatibility  
+EXPOSE $PORT
+
+# Cloud Run health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:$PORT/health || exit 1
+
+# Set environment variables for production
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Use ENTRYPOINT to respect Cloud Run's PORT environment variable
+ENTRYPOINT ["/app/entrypoint.sh"]

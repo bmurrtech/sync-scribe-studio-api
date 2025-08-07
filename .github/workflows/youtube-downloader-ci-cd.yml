@@ -1,0 +1,404 @@
+name: YouTube Downloader CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, staging]
+    paths:
+      - 'services/youtube-downloader/**'
+      - '.github/workflows/youtube-downloader-ci-cd.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'services/youtube-downloader/**'
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      force_deploy:
+        description: 'Force deployment even if tests fail'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  SERVICE_NAME: youtube-downloader
+  SERVICE_PATH: services/youtube-downloader
+  DOCKER_REGISTRY: gcr.io
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  CLOUD_RUN_SERVICE: youtube-downloader
+
+concurrency:
+  group: youtube-downloader-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Security and dependency scanning
+  security-scan:
+    name: Security & Dependency Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.SERVICE_PATH }}/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          npm ci
+
+      - name: Run npm audit
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          npm audit --audit-level moderate
+        continue-on-error: true
+
+      - name: Run Snyk security scan
+        if: github.event_name == 'pull_request'
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=${{ env.SERVICE_PATH }}/package.json --severity-threshold=high
+        continue-on-error: true
+
+  # Linting and code quality
+  lint-and-format:
+    name: Lint & Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.SERVICE_PATH }}/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          npx eslint . --ext .js,.json --max-warnings 0 --format stylish
+        continue-on-error: false
+
+      - name: Run Prettier check
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          npx prettier --check "**/*.{js,json,md,yml,yaml}"
+        continue-on-error: false
+
+      - name: Check for TODO/FIXME comments
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          if grep -r "TODO\|FIXME\|XXX\|HACK" --include="*.js" --include="*.json" . && [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "⚠️  Found TODO/FIXME comments in code. Please resolve before merging."
+            exit 1
+          fi
+        continue-on-error: true
+
+  # Unit and integration tests
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18', '20']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.SERVICE_PATH }}/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          npm ci
+
+      - name: Run unit tests
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          npm test -- --coverage --watchAll=false --testTimeout=30000
+        env:
+          NODE_ENV: test
+          CI: true
+
+      - name: Upload coverage reports
+        if: matrix.node-version == '18'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ${{ env.SERVICE_PATH }}/coverage/lcov.info
+          flags: youtube-downloader
+          name: YouTube Downloader Coverage
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: |
+            ${{ env.SERVICE_PATH }}/coverage/
+            ${{ env.SERVICE_PATH }}/test-results.xml
+          retention-days: 30
+
+  # Docker build and security scan
+  docker-build:
+    name: Docker Build & Scan
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker ${{ env.DOCKER_REGISTRY }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.SERVICE_PATH }}
+          file: ${{ env.SERVICE_PATH }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            NODE_ENV=production
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            BUILD_VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            BUILD_REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.meta.outputs.tags }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
+  # Deploy to staging environment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'staging')
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.service-url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run (Staging)
+        id: deploy
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }}-staging \
+            --image="${{ needs.docker-build.outputs.image-tag }}" \
+            --platform=managed \
+            --region=${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --port=3001 \
+            --cpu=1 \
+            --memory=512Mi \
+            --min-instances=0 \
+            --max-instances=10 \
+            --concurrency=100 \
+            --timeout=300 \
+            --set-env-vars="NODE_ENV=staging,LOG_LEVEL=info" \
+            --set-secrets="API_KEY=youtube-downloader-api-key:latest" \
+            --labels="environment=staging,service=youtube-downloader,managed-by=github-actions" \
+            --tag=staging \
+            --no-traffic
+          
+          # Get service URL
+          SERVICE_URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }}-staging --region=${{ env.GCP_REGION }} --format='value(status.url)')
+          echo "service-url=$SERVICE_URL" >> $GITHUB_OUTPUT
+          
+          # Allocate traffic to staging revision
+          gcloud run services update-traffic ${{ env.CLOUD_RUN_SERVICE }}-staging \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=staging=100
+
+      - name: Run smoke tests
+        run: |
+          # Wait for service to be ready
+          sleep 30
+          
+          # Health check
+          curl -f ${{ steps.deploy.outputs.service-url }}/healthz || exit 1
+          
+          # Basic functionality test
+          curl -f -X POST -H "Content-Type: application/json" \
+            -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}' \
+            ${{ steps.deploy.outputs.service-url }}/v1/media/youtube/info || exit 1
+
+  # Deploy to production environment
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build, deploy-staging]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'production')
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.service-url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run (Production)
+        id: deploy
+        run: |
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
+            --image="${{ needs.docker-build.outputs.image-tag }}" \
+            --platform=managed \
+            --region=${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --port=3001 \
+            --cpu=2 \
+            --memory=1Gi \
+            --min-instances=1 \
+            --max-instances=100 \
+            --concurrency=100 \
+            --timeout=300 \
+            --set-env-vars="NODE_ENV=production,LOG_LEVEL=warn" \
+            --set-secrets="API_KEY=youtube-downloader-api-key:latest" \
+            --labels="environment=production,service=youtube-downloader,managed-by=github-actions" \
+            --tag=production \
+            --no-traffic
+          
+          # Get service URL
+          SERVICE_URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} --region=${{ env.GCP_REGION }} --format='value(status.url)')
+          echo "service-url=$SERVICE_URL" >> $GITHUB_OUTPUT
+          
+          # Gradual traffic allocation (canary deployment)
+          gcloud run services update-traffic ${{ env.CLOUD_RUN_SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=production=10,LATEST=90
+
+      - name: Run production smoke tests
+        run: |
+          # Wait for service to be ready
+          sleep 30
+          
+          # Health check
+          curl -f ${{ steps.deploy.outputs.service-url }}/healthz || exit 1
+          
+          # Basic functionality test
+          curl -f -X POST -H "Content-Type: application/json" \
+            -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}' \
+            ${{ steps.deploy.outputs.service-url }}/v1/media/youtube/info || exit 1
+
+      - name: Complete traffic migration
+        run: |
+          # Wait 5 minutes for monitoring
+          sleep 300
+          
+          # Complete traffic migration to new version
+          gcloud run services update-traffic ${{ env.CLOUD_RUN_SERVICE }} \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=production=100
+
+  # Notification and cleanup
+  notify:
+    name: Notify & Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: Notify on success
+        if: needs.deploy-production.result == 'success'
+        run: |
+          echo "✅ YouTube Downloader deployed successfully to production!"
+          
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ YouTube Downloader deployment failed!"
+          echo "Please check the logs and fix any issues."
+
+      - name: Clean up old images
+        if: always()
+        run: |
+          # Clean up images older than 30 days
+          gcloud container images list-tags ${{ env.DOCKER_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }} \
+            --filter='-tags:*' --format='get(digest)' --limit=50 | \
+            xargs -I {} gcloud container images delete ${{ env.DOCKER_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}@{} --quiet || true

@@ -1,0 +1,334 @@
+# GCP Monitoring and Alerting Configuration
+# Comprehensive monitoring setup for YouTube Downloader microservice
+
+# Error Rate Alerting Policy
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: youtube-downloader-alerts
+  labels:
+    app: youtube-downloader
+    component: monitoring
+spec:
+  groups:
+  - name: youtube-downloader.rules
+    rules:
+    - alert: HighErrorRate
+      expr: |
+        (
+          rate(youtube_downloader_errors_total[5m]) /
+          rate(youtube_downloader_requests_total[5m])
+        ) * 100 > 5
+      for: 2m
+      labels:
+        severity: critical
+        service: youtube-downloader
+      annotations:
+        summary: "High error rate detected for YouTube Downloader"
+        description: "Error rate is {{ $value }}% over the last 5 minutes (threshold: 5%)"
+        
+    - alert: HighResponseTime
+      expr: |
+        histogram_quantile(0.95, 
+          rate(youtube_downloader_request_duration_seconds_bucket[5m])
+        ) > 30
+      for: 5m
+      labels:
+        severity: warning
+        service: youtube-downloader
+      annotations:
+        summary: "High response time detected"
+        description: "95th percentile response time is {{ $value }}s (threshold: 30s)"
+        
+    - alert: HighMemoryUsage
+      expr: |
+        (youtube_downloader_memory_usage_bytes / youtube_downloader_memory_limit_bytes) * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+        service: youtube-downloader
+      annotations:
+        summary: "High memory usage detected"
+        description: "Memory usage is {{ $value }}% of allocated limit (threshold: 80%)"
+        
+    - alert: ServiceDown
+      expr: up{job="youtube-downloader"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: youtube-downloader
+      annotations:
+        summary: "YouTube Downloader service is down"
+        description: "Service has been down for more than 1 minute"
+        
+    - alert: TooManyRequests
+      expr: rate(youtube_downloader_requests_total[1m]) > 50
+      for: 2m
+      labels:
+        severity: warning
+        service: youtube-downloader
+      annotations:
+        summary: "Unusual request volume detected"
+        description: "Request rate is {{ $value }} requests/minute (monitoring threshold: 50/min)"
+        
+    - alert: RateLimitingActive
+      expr: rate(youtube_downloader_rate_limited_total[5m]) > 0.1
+      for: 2m
+      labels:
+        severity: info
+        service: youtube-downloader
+      annotations:
+        summary: "Rate limiting is active"
+        description: "Rate limiting triggered {{ $value }} times in the last 5 minutes"
+
+---
+# GCP Log-based Metrics
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gcp-log-metrics
+data:
+  create-metrics.sh: |
+    #!/bin/bash
+    
+    # Error rate metric
+    gcloud logging metrics create youtube_downloader_error_rate \
+      --description="Error rate for YouTube Downloader service" \
+      --log-filter='resource.type="cloud_run_revision" 
+                    AND resource.labels.service_name="youtube-downloader" 
+                    AND (severity>=ERROR OR httpRequest.status>=400)' \
+      --quiet || true
+    
+    # Request count metric
+    gcloud logging metrics create youtube_downloader_request_count \
+      --description="Total request count for YouTube Downloader service" \
+      --log-filter='resource.type="cloud_run_revision" 
+                    AND resource.labels.service_name="youtube-downloader" 
+                    AND httpRequest.requestMethod!=""' \
+      --quiet || true
+    
+    # Response time metric
+    gcloud logging metrics create youtube_downloader_response_time \
+      --description="Response time distribution for YouTube Downloader" \
+      --log-filter='resource.type="cloud_run_revision" 
+                    AND resource.labels.service_name="youtube-downloader" 
+                    AND httpRequest.latency!=""' \
+      --value-extractor='EXTRACT(httpRequest.latency)' \
+      --quiet || true
+    
+    # Rick Roll specific requests
+    gcloud logging metrics create youtube_downloader_rickroll_requests \
+      --description="Rick Roll video requests" \
+      --log-filter='resource.type="cloud_run_revision" 
+                    AND resource.labels.service_name="youtube-downloader" 
+                    AND (jsonPayload.url:"dQw4w9WgXcQ" OR textPayload:"dQw4w9WgXcQ")' \
+      --quiet || true
+    
+    # Security violations
+    gcloud logging metrics create youtube_downloader_security_violations \
+      --description="Security violations for YouTube Downloader" \
+      --log-filter='resource.type="cloud_run_revision" 
+                    AND resource.labels.service_name="youtube-downloader" 
+                    AND (textPayload:("SSRF" OR "malicious" OR "blocked") 
+                         OR jsonPayload.securityViolation=true)' \
+      --quiet || true
+    
+    echo "Log-based metrics created successfully"
+
+---
+# Alerting Policy Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gcp-alerting-policies
+data:
+  error-rate-policy.yaml: |
+    displayName: "YouTube Downloader - High Error Rate"
+    conditions:
+    - displayName: "Error rate > 5%"
+      conditionThreshold:
+        filter: 'resource.type="cloud_run_revision" AND resource.label.service_name="youtube-downloader"'
+        comparison: COMPARISON_GREATER_THAN
+        thresholdValue: 5.0
+        duration: 300s
+        aggregations:
+        - alignmentPeriod: 300s
+          perSeriesAligner: ALIGN_RATE
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+          - resource.label.service_name
+    notificationChannels: []
+    alertStrategy:
+      autoClose: 86400s
+    enabled: true
+    
+  response-time-policy.yaml: |
+    displayName: "YouTube Downloader - High Response Time"
+    conditions:
+    - displayName: "95th percentile response time > 30s"
+      conditionThreshold:
+        filter: 'resource.type="cloud_run_revision" AND resource.label.service_name="youtube-downloader"'
+        comparison: COMPARISON_GREATER_THAN
+        thresholdValue: 30.0
+        duration: 300s
+        aggregations:
+        - alignmentPeriod: 300s
+          perSeriesAligner: ALIGN_PERCENTILE_95
+          crossSeriesReducer: REDUCE_MEAN
+    enabled: true
+    
+  memory-usage-policy.yaml: |
+    displayName: "YouTube Downloader - High Memory Usage"
+    conditions:
+    - displayName: "Memory utilization > 80%"
+      conditionThreshold:
+        filter: 'resource.type="cloud_run_revision" AND resource.label.service_name="youtube-downloader"'
+        comparison: COMPARISON_GREATER_THAN
+        thresholdValue: 0.8
+        duration: 300s
+        aggregations:
+        - alignmentPeriod: 60s
+          perSeriesAligner: ALIGN_MEAN
+          crossSeriesReducer: REDUCE_MEAN
+    enabled: true
+
+---
+# Dashboard Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gcp-dashboard-config
+data:
+  dashboard.json: |
+    {
+      "displayName": "YouTube Downloader Service Dashboard",
+      "mosaicLayout": {
+        "tiles": [
+          {
+            "width": 6,
+            "height": 4,
+            "widget": {
+              "title": "Request Rate",
+              "xyChart": {
+                "dataSets": [{
+                  "timeSeriesQuery": {
+                    "timeSeriesFilter": {
+                      "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"youtube-downloader\"",
+                      "aggregation": {
+                        "alignmentPeriod": "60s",
+                        "perSeriesAligner": "ALIGN_RATE"
+                      }
+                    }
+                  }
+                }],
+                "yAxis": {
+                  "label": "Requests/sec",
+                  "scale": "LINEAR"
+                }
+              }
+            }
+          },
+          {
+            "width": 6,
+            "height": 4,
+            "xPos": 6,
+            "widget": {
+              "title": "Error Rate",
+              "xyChart": {
+                "dataSets": [{
+                  "timeSeriesQuery": {
+                    "timeSeriesFilter": {
+                      "filter": "metric.type=\"logging.googleapis.com/user/youtube_downloader_error_rate\"",
+                      "aggregation": {
+                        "alignmentPeriod": "300s",
+                        "perSeriesAligner": "ALIGN_RATE"
+                      }
+                    }
+                  }
+                }],
+                "yAxis": {
+                  "label": "Errors/sec",
+                  "scale": "LINEAR"
+                }
+              }
+            }
+          },
+          {
+            "width": 6,
+            "height": 4,
+            "yPos": 4,
+            "widget": {
+              "title": "Response Time (95th percentile)",
+              "xyChart": {
+                "dataSets": [{
+                  "timeSeriesQuery": {
+                    "timeSeriesFilter": {
+                      "filter": "metric.type=\"run.googleapis.com/request_latencies\"",
+                      "aggregation": {
+                        "alignmentPeriod": "60s",
+                        "perSeriesAligner": "ALIGN_PERCENTILE_95"
+                      }
+                    }
+                  }
+                }],
+                "yAxis": {
+                  "label": "Latency (ms)",
+                  "scale": "LINEAR"
+                }
+              }
+            }
+          },
+          {
+            "width": 6,
+            "height": 4,
+            "xPos": 6,
+            "yPos": 4,
+            "widget": {
+              "title": "Memory Usage",
+              "xyChart": {
+                "dataSets": [{
+                  "timeSeriesQuery": {
+                    "timeSeriesFilter": {
+                      "filter": "metric.type=\"run.googleapis.com/container/memory/utilizations\"",
+                      "aggregation": {
+                        "alignmentPeriod": "60s",
+                        "perSeriesAligner": "ALIGN_MEAN"
+                      }
+                    }
+                  }
+                }],
+                "yAxis": {
+                  "label": "Memory Utilization",
+                  "scale": "LINEAR"
+                }
+              }
+            }
+          },
+          {
+            "width": 12,
+            "height": 4,
+            "yPos": 8,
+            "widget": {
+              "title": "Rick Roll Requests Over Time",
+              "xyChart": {
+                "dataSets": [{
+                  "timeSeriesQuery": {
+                    "timeSeriesFilter": {
+                      "filter": "metric.type=\"logging.googleapis.com/user/youtube_downloader_rickroll_requests\"",
+                      "aggregation": {
+                        "alignmentPeriod": "300s",
+                        "perSeriesAligner": "ALIGN_RATE"
+                      }
+                    }
+                  }
+                }],
+                "yAxis": {
+                  "label": "Rick Roll Requests/sec",
+                  "scale": "LINEAR"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }

@@ -1,0 +1,167 @@
+# Google Cloud Run Service Configuration
+# Deploys YouTube Downloader microservice to GCP Cloud Run
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: youtube-downloader
+  labels:
+    app: youtube-downloader
+    component: microservice
+    environment: production
+  annotations:
+    # Cloud Run annotations
+    run.googleapis.com/cpu-throttling: "false"  # Keep CPU allocated when not serving requests
+    run.googleapis.com/execution-environment: gen2  # Use second-generation execution environment
+    run.googleapis.com/ingress: all  # Allow ingress from internet and VPC
+spec:
+  template:
+    metadata:
+      labels:
+        app: youtube-downloader
+        version: v1.0.0
+      annotations:
+        # Scaling configuration
+        autoscaling.knative.dev/minScale: "1"      # Keep at least 1 instance warm
+        autoscaling.knative.dev/maxScale: "10"     # Scale up to 10 instances max
+        
+        # Resource allocation
+        run.googleapis.com/cpu: "1000m"           # 1 vCPU
+        run.googleapis.com/memory: "2Gi"          # 2GB memory
+        run.googleapis.com/startup-cpu-boost: "true"  # Extra CPU during startup
+        
+        # Timeout configuration
+        run.googleapis.com/timeout: "900s"        # 15 minutes for long downloads
+        
+        # Security configuration  
+        run.googleapis.com/execution-environment: gen2
+        
+    spec:
+      # Container timeout for long-running requests
+      timeoutSeconds: 900  # 15 minutes
+      
+      # Service account for Cloud Run
+      serviceAccountName: youtube-downloader-sa
+      
+      containers:
+      - name: youtube-downloader
+        image: gcr.io/PROJECT_ID/youtube-downloader:latest
+        
+        # Container ports
+        ports:
+        - name: http1
+          containerPort: 3001
+          protocol: TCP
+        
+        # Environment variables
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3001"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: ALLOWED_ORIGINS
+          value: "https://your-frontend-domain.com,https://sync-scribe-studio.com"
+        - name: RATE_LIMIT_WINDOW_MS
+          value: "900000"  # 15 minutes
+        - name: RATE_LIMIT_MAX_REQUESTS
+          value: "100"
+        - name: YTDL_NETWORK_TIMEOUT
+          value: "30000"
+        - name: CUSTOM_USER_AGENT
+          value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        
+        # Resource limits and requests
+        resources:
+          limits:
+            cpu: "1000m"      # 1 vCPU
+            memory: "2Gi"     # 2GB RAM
+          requests:
+            cpu: "500m"       # 0.5 vCPU minimum
+            memory: "1Gi"     # 1GB RAM minimum
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 30
+          successThreshold: 1
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 2
+        
+        # Startup probe for faster cold starts
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 3001
+            scheme: HTTP
+          initialDelaySeconds: 0
+          timeoutSeconds: 3
+          periodSeconds: 3
+          successThreshold: 1
+          failureThreshold: 10  # Allow up to 30 seconds for startup
+        
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+          readOnlyRootFilesystem: false  # ytdl-core needs write access for temp files
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        
+        # Volume mounts for logs
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /app/logs
+      
+      # Volumes
+      volumes:
+      - name: logs-volume
+        emptyDir: {}
+---
+# IAM Service Account for Cloud Run
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: youtube-downloader-sa
+  labels:
+    app: youtube-downloader
+spec:
+  displayName: "YouTube Downloader Service Account"
+  description: "Service account for YouTube Downloader microservice"
+---
+# IAM Policy for service account
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicy
+metadata:
+  name: youtube-downloader-sa-policy
+spec:
+  resourceRef:
+    apiVersion: iam.cnrm.cloud.google.com/v1beta1
+    kind: IAMServiceAccount
+    name: youtube-downloader-sa
+  bindings:
+  - role: roles/logging.logWriter
+    members:
+    - serviceAccount:youtube-downloader-sa@PROJECT_ID.iam.gserviceaccount.com
+  - role: roles/monitoring.metricWriter
+    members:
+    - serviceAccount:youtube-downloader-sa@PROJECT_ID.iam.gserviceaccount.com

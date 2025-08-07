@@ -1,0 +1,114 @@
+services:
+  traefik:
+    image: "traefik"
+    restart: unless-stopped
+    command:
+      - "--api=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.mytlschallenge.acme.tlschallenge=true"
+      - "--certificatesresolvers.mytlschallenge.acme.email=${SSL_EMAIL}"
+      - "--certificatesresolvers.mytlschallenge.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - traefik_data:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - web
+      - internal
+      
+  ncat:
+    image: stephengpope/no-code-architects-toolkit:latest
+    env_file:
+      - .env
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ncat.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.ncat.tls=true
+      - traefik.http.routers.ncat.entrypoints=web,websecure
+      - traefik.http.routers.ncat.tls.certresolver=mytlschallenge
+      - traefik.docker.network=web
+    volumes:
+      - storage:/var/www/html/storage/app
+      - logs:/var/www/html/storage/logs
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+      
+  youtube-downloader:
+    build:
+      context: ./services/youtube-downloader
+      dockerfile: Dockerfile
+      target: production
+    container_name: youtube-downloader
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - YTDL_NETWORK_TIMEOUT=${YTDL_NETWORK_TIMEOUT:-30000}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+      - SKIP_NETWORK_CHECK=${SKIP_NETWORK_CHECK:-false}
+    # Internal networking only - no host-published ports
+    expose:
+      - "3001"
+    networks:
+      - internal
+    # Resource constraints
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Needed for logs directory
+    user: "1001:1001"
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Volume for persistent logs
+    volumes:
+      - youtube_logs:/app/logs:rw
+    # Optional: Traefik labels for internal routing (if needed by other services)
+    labels:
+      - traefik.enable=false  # Not exposed to public web
+      - traefik.docker.network=internal
+      - traefik.http.services.youtube-downloader.loadbalancer.server.port=3001
+
+volumes:
+  traefik_data:
+    driver: local
+  storage:
+    driver: local
+  logs:
+    driver: local
+  youtube_logs:
+    driver: local
+    
+networks:
+  web:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true

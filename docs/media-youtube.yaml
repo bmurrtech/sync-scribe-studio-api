@@ -1,0 +1,625 @@
+openapi: 3.0.3
+info:
+  title: YouTube Downloader Microservice
+  description: |
+    A secure and efficient microservice for downloading YouTube videos and extracting audio content.
+    
+    ## Features
+    - Extract video information and metadata
+    - Download audio in MP3 format
+    - Download video in MP4 format
+    - Comprehensive input validation and sanitization
+    - Rate limiting and SSRF protection
+    - Detailed logging with no sensitive data exposure
+    
+    ## Security
+    - All inputs are validated using Joi schemas
+    - SSRF/RFI attack prevention
+    - Rate limiting (10 req/sec default for downloads)
+    - Input sanitization to prevent XSS
+    - Secure headers with Helmet.js
+    
+    ## Rate Limits
+    - Health endpoints: 100 requests/minute
+    - Info endpoints: 30 requests/minute  
+    - Download endpoints: 5 requests/5 minutes
+    
+  version: '1.0.0'
+  contact:
+    name: Sync Scribe Studio
+    url: https://github.com/sync-scribe-studio/api
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Development server
+  - url: https://your-production-domain.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check and service information endpoints
+  - name: Video Info
+    description: Extract YouTube video metadata and information
+  - name: Audio Download
+    description: Download YouTube videos as audio files
+  - name: Video Download
+    description: Download YouTube videos as video files
+
+paths:
+  /:
+    get:
+      tags:
+        - Health
+      summary: Get service information
+      description: Returns basic service information and available endpoints
+      operationId: getServiceInfo
+      responses:
+        '200':
+          description: Service information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceInfo'
+              example:
+                service: "YouTube Downloader Microservice"
+                version: "1.0.0"
+                endpoints:
+                  "/healthz": "Health check endpoint"
+                  "/v1/media/youtube/info": "Get video information (POST)"
+                  "/v1/media/youtube/mp3": "Download audio as MP3 (POST)"
+                  "/v1/media/youtube/mp4": "Download video as MP4 (POST)"
+                documentation: "https://github.com/sync-scribe-studio/api"
+
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Returns the health status of the service
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+              example:
+                uptime: 3600.123
+                message: "OK"
+                timestamp: "2024-01-15T10:30:00.000Z"
+                service: "youtube-downloader"
+                version: "1.0.0"
+                status: "healthy"
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+              example:
+                uptime: 3600.123
+                message: "ERROR"
+                timestamp: "2024-01-15T10:30:00.000Z"
+                service: "youtube-downloader"
+                version: "1.0.0"
+                status: "unhealthy"
+
+  /v1/media/youtube/info:
+    post:
+      tags:
+        - Video Info
+      summary: Get YouTube video information
+      description: |
+        Extracts comprehensive information about a YouTube video including metadata,
+        available formats, thumbnails, and channel information.
+        
+        **Security Features:**
+        - URL validation and sanitization
+        - SSRF protection against private networks
+        - Rate limiting: 30 requests/minute
+      operationId: getVideoInfo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoInfoRequest'
+            examples:
+              basic:
+                summary: Basic video info request
+                value:
+                  url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+              with_options:
+                summary: Request with additional options
+                value:
+                  url: "https://youtu.be/dQw4w9WgXcQ"
+                  includeFormats: true
+                  includeThumbnails: true
+      responses:
+        '200':
+          description: Video information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoInfoResponse'
+        '400':
+          description: Invalid request or URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: Validation error
+                  value:
+                    success: false
+                    error: "Validation failed"
+                    details:
+                      - field: "url"
+                        message: "URL must be from a valid YouTube domain"
+                        type: "url.domain"
+                    timestamp: "2024-01-15T10:30:00.000Z"
+        '403':
+          description: Forbidden - SSRF protection triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/media/youtube/mp3:
+    post:
+      tags:
+        - Audio Download
+      summary: Download YouTube video as MP3
+      description: |
+        Downloads the audio track of a YouTube video as an MP3 file.
+        
+        **Security Features:**
+        - Strict rate limiting: 5 downloads/5 minutes
+        - URL validation and sanitization
+        - SSRF protection
+        - Content-Type validation
+        
+        **Response:**
+        Returns the audio file as a binary stream with appropriate headers.
+      operationId: downloadMp3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioDownloadRequest'
+            examples:
+              default_quality:
+                summary: Download with default quality
+                value:
+                  url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+              high_quality:
+                summary: Download with specific quality
+                value:
+                  url: "https://youtu.be/dQw4w9WgXcQ"
+                  quality: "highestaudio"
+                  format: "mp3"
+      responses:
+        '200':
+          description: Audio file download
+          headers:
+            Content-Type:
+              description: MIME type of the audio file
+              schema:
+                type: string
+                example: "audio/mpeg"
+            Content-Disposition:
+              description: Filename for download
+              schema:
+                type: string
+                example: 'attachment; filename="video_title.mp3"'
+            X-Video-Title:
+              description: Original video title
+              schema:
+                type: string
+            X-Video-Duration:
+              description: Video duration in seconds
+              schema:
+                type: string
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request or URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - SSRF protection triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Download rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+              example:
+                success: false
+                error: "Download rate limit exceeded"
+                message: "Too many download requests. Please wait before trying again."
+                retryAfter: 300
+        '500':
+          description: Server error during download
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/media/youtube/mp4:
+    post:
+      tags:
+        - Video Download
+      summary: Download YouTube video as MP4
+      description: |
+        Downloads a YouTube video as an MP4 file.
+        
+        **Security Features:**
+        - Strict rate limiting: 5 downloads/5 minutes
+        - URL validation and sanitization  
+        - SSRF protection
+        - Content-Type validation
+        
+        **Response:**
+        Returns the video file as a binary stream with appropriate headers.
+      operationId: downloadMp4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoDownloadRequest'
+            examples:
+              default_quality:
+                summary: Download with default quality
+                value:
+                  url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+              specific_quality:
+                summary: Download with specific quality
+                value:
+                  url: "https://youtu.be/dQw4w9WgXcQ"
+                  quality: "720p"
+                  includeAudio: true
+      responses:
+        '200':
+          description: Video file download
+          headers:
+            Content-Type:
+              description: MIME type of the video file
+              schema:
+                type: string
+                example: "video/mp4"
+            Content-Disposition:
+              description: Filename for download
+              schema:
+                type: string
+                example: 'attachment; filename="video_title.mp4"'
+            X-Video-Title:
+              description: Original video title
+              schema:
+                type: string
+            X-Video-Duration:
+              description: Video duration in seconds
+              schema:
+                type: string
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request or URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - SSRF protection triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Download rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+        '500':
+          description: Server error during download
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ServiceInfo:
+      type: object
+      properties:
+        service:
+          type: string
+          description: Service name
+        version:
+          type: string
+          description: Service version
+        endpoints:
+          type: object
+          description: Available endpoints and their descriptions
+        documentation:
+          type: string
+          description: Link to documentation
+
+    HealthCheck:
+      type: object
+      properties:
+        uptime:
+          type: number
+          description: Service uptime in seconds
+        message:
+          type: string
+          description: Health status message
+        timestamp:
+          type: string
+          format: date-time
+          description: Current timestamp
+        service:
+          type: string
+          description: Service name
+        version:
+          type: string
+          description: Service version
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Overall health status
+
+    VideoInfoRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: YouTube video URL
+          pattern: '^https?://(www\.)?(youtube\.com|youtu\.be|m\.youtube\.com|music\.youtube\.com)/'
+          example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        includeFormats:
+          type: boolean
+          description: Include available video/audio formats
+          default: true
+        includeThumbnails:
+          type: boolean
+          description: Include thumbnail information
+          default: true
+
+    AudioDownloadRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: YouTube video URL
+          pattern: '^https?://(www\.)?(youtube\.com|youtu\.be|m\.youtube\.com|music\.youtube\.com)/'
+          example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        quality:
+          type: string
+          enum: [highestaudio, lowestaudio, highest, lowest]
+          description: Audio quality preference
+          default: "highestaudio"
+        format:
+          type: string
+          enum: [mp3, aac, m4a, ogg, webm]
+          description: Audio format preference
+          default: "mp3"
+
+    VideoDownloadRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: YouTube video URL
+          pattern: '^https?://(www\.)?(youtube\.com|youtu\.be|m\.youtube\.com|music\.youtube\.com)/'
+          example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        quality:
+          type: string
+          enum: [highest, lowest, highestvideo, lowestvideo, 144p, 240p, 360p, 480p, 720p, 1080p, 1440p, 2160p]
+          description: Video quality preference
+          default: "highest"
+        includeAudio:
+          type: boolean
+          description: Include audio track in video
+          default: true
+
+    VideoInfoResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Request success status
+        data:
+          type: object
+          properties:
+            videoId:
+              type: string
+              description: YouTube video ID
+            title:
+              type: string
+              description: Video title
+            description:
+              type: string
+              description: Video description
+            lengthSeconds:
+              type: integer
+              description: Video duration in seconds
+            viewCount:
+              type: integer
+              description: Number of views
+            author:
+              type: object
+              properties:
+                name:
+                  type: string
+                channelUrl:
+                  type: string
+                subscriberCount:
+                  type: integer
+            publishDate:
+              type: string
+              description: Video publish date
+            uploadDate:
+              type: string
+              description: Video upload date
+            thumbnails:
+              type: array
+              items:
+                type: object
+                properties:
+                  url:
+                    type: string
+                  width:
+                    type: integer
+                  height:
+                    type: integer
+            keywords:
+              type: array
+              items:
+                type: string
+            category:
+              type: string
+            isLiveContent:
+              type: boolean
+            formats:
+              type: object
+              properties:
+                audioFormats:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AudioFormat'
+                videoFormats:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/VideoFormat'
+        timestamp:
+          type: string
+          format: date-time
+
+    AudioFormat:
+      type: object
+      properties:
+        itag:
+          type: integer
+        mimeType:
+          type: string
+        bitrate:
+          type: integer
+        audioQuality:
+          type: string
+        audioSampleRate:
+          type: string
+
+    VideoFormat:
+      type: object
+      properties:
+        itag:
+          type: integer
+        mimeType:
+          type: string
+        qualityLabel:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        fps:
+          type: integer
+        hasAudio:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Request success status (always false for errors)
+        error:
+          type: string
+          description: Error type or category
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: array
+          description: Detailed validation errors (when applicable)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+              type:
+                type: string
+              value:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+        timestamp:
+          type: string
+          format: date-time
+
+    RateLimitError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Request success status (always false)
+        error:
+          type: string
+          description: Rate limit error type
+        message:
+          type: string
+          description: Rate limit error message
+        retryAfter:
+          type: integer
+          description: Seconds to wait before retrying
+
+  securitySchemes: {}
+
+# Security is handled via rate limiting and input validation
+# No authentication required for this microservice
+security: []

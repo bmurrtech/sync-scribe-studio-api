@@ -1,0 +1,48 @@
+{
+  "name": "sync-scribe-studio-api-integration-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive integration tests for Sync Scribe Studio API",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:rickroll": "jest --testNamePattern='Rick Roll'",
+    "test:security": "jest --testNamePattern='Security|Rate Limiting|SSRF'",
+    "test:performance": "jest --testNamePattern='Performance|Load'",
+    "pretest": "node scripts/setup-test-env.js",
+    "posttest": "node scripts/cleanup-test-env.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 60000,
+    "setupFilesAfterEnv": ["<rootDir>/setup/jest.setup.js"],
+    "testMatch": [
+      "**/__tests__/**/*.js",
+      "**/integration/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "../services/**/*.js",
+      "!**/node_modules/**",
+      "!**/coverage/**"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"],
+    "verbose": true,
+    "detectOpenHandles": true,
+    "forceExit": true
+  },
+  "dependencies": {
+    "supertest": "^7.0.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0",
+    "jest-environment-node": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
