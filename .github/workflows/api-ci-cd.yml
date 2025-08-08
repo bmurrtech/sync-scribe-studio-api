@@ -32,7 +32,7 @@ on:
 env:
   PYTHON_VERSION: '3.9'
   DOCKER_IMAGE_NAME: sync-scribe-studio-api
-  TEST_DB_TOKEN: test_api_key_for_ci_testing_12345678901234567890
+  TEST_X_API_KEY: test_api_key_for_ci_testing_12345678901234567890
 
 concurrency:
   group: api-ci-${{ github.ref }}
@@ -135,7 +135,8 @@ jobs:
       - name: Run unit tests - Health Endpoints
         if: matrix.test-group == 'health-endpoints'
         env:
-          DB_TOKEN: ${{ env.TEST_DB_TOKEN }}
+          X_API_KEY: ${{ env.TEST_X_API_KEY }}
+          API_KEY: ${{ env.TEST_X_API_KEY }}
         run: |
           source ${{ env.VENV_PATH }}/bin/activate
           pytest tests/unit/test_health_endpoints.py -v --tb=short --cov=server --cov-report=xml --cov-report=term
@@ -143,7 +144,8 @@ jobs:
       - name: Run unit tests - Security & Auth
         if: matrix.test-group == 'security-auth'
         env:
-          DB_TOKEN: ${{ env.TEST_DB_TOKEN }}
+          X_API_KEY: ${{ env.TEST_X_API_KEY }}
+          API_KEY: ${{ env.TEST_X_API_KEY }}
         run: |
           source ${{ env.VENV_PATH }}/bin/activate
           pytest tests/test_security.py tests/unit/test_api_endpoints_auth.py -v --tb=short --cov=server --cov-report=xml --cov-report=term
@@ -151,7 +153,8 @@ jobs:
       - name: Run unit tests - API Endpoints
         if: matrix.test-group == 'api-endpoints'
         env:
-          DB_TOKEN: ${{ env.TEST_DB_TOKEN }}
+          X_API_KEY: ${{ env.TEST_X_API_KEY }}
+          API_KEY: ${{ env.TEST_X_API_KEY }}
         run: |
           source ${{ env.VENV_PATH }}/bin/activate
           pytest tests/unit/ -v --tb=short --cov=routes --cov-report=xml --cov-report=term --ignore=tests/unit/test_health_endpoints.py --ignore=tests/unit/test_api_endpoints_auth.py
@@ -293,7 +296,7 @@ jobs:
           docker run -d --name test-container \
             -p 8080:8080 \
             -e PORT=8080 \
-            -e DB_TOKEN=${{ env.TEST_DB_TOKEN }} \
+            -e X_API_KEY=${{ env.TEST_X_API_KEY }} \
             -e PYTHONUNBUFFERED=1 \
             ${{ env.DOCKER_IMAGE_NAME }}:latest
 
@@ -349,7 +352,7 @@ jobs:
 
       - name: Run Docker integration tests
         env:
-          DB_TOKEN: ${{ env.TEST_DB_TOKEN }}
+          X_API_KEY: ${{ env.TEST_X_API_KEY }}
           DOCKER_IMAGE_NAME: ${{ env.DOCKER_IMAGE_NAME }}
         run: |
           source test_venv/bin/activate

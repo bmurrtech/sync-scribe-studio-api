@@ -1,5 +1,9 @@
 name: 'GHCR CI/CD Pipeline'
 
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches: [ main, develop ]
@@ -111,8 +115,8 @@ jobs:
 
       - name: Set environment variables for tests
         run: |
+          echo "X_API_KEY=test-api-key-${{ github.run_id }}" >> $GITHUB_ENV
           echo "API_KEY=test-api-key-${{ github.run_id }}" >> $GITHUB_ENV
-          echo "DB_TOKEN=test-db-token-${{ github.run_id }}" >> $GITHUB_ENV
           echo "PORT=8000" >> $GITHUB_ENV
           echo "STAGING_RAILWAY_URL=https://test-staging.com" >> $GITHUB_ENV
           echo "PROD_RAILWAY_URL=https://test-prod.com" >> $GITHUB_ENV
@@ -195,8 +199,7 @@ jobs:
           docker run --rm -d \
             --name test-container \
             -p 8080:8080 \
-            -e API_KEY=test-key \
-            -e DB_TOKEN=test-token \
+            -e X_API_KEY=test-key \
             -e PORT=8080 \
             ${{ steps.meta.outputs.tags }} | head -1
           

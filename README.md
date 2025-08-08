@@ -91,8 +91,6 @@ gcloud run deploy sync-scribe-studio-api \
 **GPU-Accelerated Processing:**
 Google Cloud Run now supports GPU acceleration for dramatically faster AI processing while maintaining serverless cost benefits:
 
-![Cloud Run GPU Configuration](https://i.imgur.com/zXwaLNh.png)
-
 ```bash
 # Deploy with GPU support for faster transcription
 gcloud run deploy sync-scribe-studio-api \
@@ -292,6 +290,58 @@ curl -X POST \
   -d '{"url": "https://example.com/video.mp4", "format": "mp3"}' \
   http://localhost:8080/v1/media/convert
 ```
+
+---
+
+## ⚠️ Cloud Run Deployment Troubleshooting
+
+### GHCR Image URL Issue
+
+**Problem**: Google Cloud Run only accepts certain container registry patterns and may reject GHCR URLs.
+
+**Solution**: For Google Cloud Run deployment, we recommend:
+
+1. **Use Google Container Registry (GCR)**:
+   ```bash
+   # Push to GCR instead
+   docker tag ghcr.io/bmurrtech/sync-scribe-studio-api:latest gcr.io/YOUR_PROJECT/sync-scribe-studio-api:latest
+   docker push gcr.io/YOUR_PROJECT/sync-scribe-studio-api:latest
+   
+   # Deploy from GCR
+   gcloud run deploy sync-scribe-studio-api \
+     --image gcr.io/YOUR_PROJECT/sync-scribe-studio-api:latest \
+     --platform managed
+   ```
+
+2. **Use Artifact Registry (recommended)**:
+   ```bash
+   # Push to Artifact Registry
+   docker tag ghcr.io/bmurrtech/sync-scribe-studio-api:latest us-central1-docker.pkg.dev/YOUR_PROJECT/sync-scribe/api:latest
+   docker push us-central1-docker.pkg.dev/YOUR_PROJECT/sync-scribe/api:latest
+   
+   # Deploy from Artifact Registry
+   gcloud run deploy sync-scribe-studio-api \
+     --image us-central1-docker.pkg.dev/YOUR_PROJECT/sync-scribe/api:latest \
+     --platform managed
+   ```
+
+3. **Pull and Re-push Strategy**:
+   ```bash
+   # Pull from GHCR
+   docker pull ghcr.io/bmurrtech/sync-scribe-studio-api:latest
+   
+   # Re-tag for GCP
+   docker tag ghcr.io/bmurrtech/sync-scribe-studio-api:latest gcr.io/YOUR_PROJECT/sync-scribe-studio-api:latest
+   
+   # Push to GCP registry
+   docker push gcr.io/YOUR_PROJECT/sync-scribe-studio-api:latest
+   ```
+
+**Alternative Platforms**: If you prefer to use GHCR directly, consider:
+- DigitalOcean App Platform (supports GHCR)
+- Railway (supports GHCR)
+- Render (supports GHCR)
+- AWS App Runner (supports public container registries)
 
 ---
 

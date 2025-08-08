@@ -20,9 +20,9 @@ import os
 import logging
 
 # Retrieve the API key from environment variables
-API_KEY = os.environ.get('API_KEY')
+API_KEY = os.environ.get('X_API_KEY') or os.environ.get('API_KEY')
 if not API_KEY:
-    raise ValueError("API_KEY environment variable is not set")
+    raise ValueError("X_API_KEY environment variable is not set")
 
 # Storage path setting
 LOCAL_STORAGE_PATH = os.environ.get('LOCAL_STORAGE_PATH', '/tmp')
