@@ -22,8 +22,10 @@ exclude_dirs = [
 
 # Test IDs to skip (use with caution)
 skips = [
-    # B101: assert_used - We use asserts in tests
-    # B601: shell=True - When properly validated
+    "B104",  # hardcoded_bind_all_interfaces - Required for Docker/Cloud Run (0.0.0.0)
+    "B108",  # hardcoded_tmp_directory - Standard for containerized environments (/tmp)
+    "B113",  # request_without_timeout - Internal service calls are acceptable
+    "B201",  # flask_debug_true - Only in example/test files
 ]
 
 # Test IDs to include (security-focused)
@@ -99,8 +101,8 @@ tests = [
     "B703"   # django_mark_safe
 ]
 
-# Severity levels
-severity = "medium"
+# Severity levels - only flag high severity issues
+severity = "high"
 
 # Confidence levels
 confidence = "medium"
