@@ -25,6 +25,7 @@ import os
 import time
 from version import BUILD_NUMBER  # Import the BUILD_NUMBER
 from app_utils import log_job_status, discover_and_register_blueprints  # Import the discover_and_register_blueprints function
+from server.security import setup_security
 
 MAX_QUEUE_LENGTH = int(os.environ.get('MAX_QUEUE_LENGTH', 0))
 
@@ -195,6 +196,9 @@ def create_app():
     
     # Use the discover_and_register_blueprints function to register all blueprints
     discover_and_register_blueprints(app)
+    
+    # Setup security middleware and headers
+    setup_security(app)
 
     return app
 

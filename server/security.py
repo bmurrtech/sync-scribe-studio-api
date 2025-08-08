@@ -60,14 +60,19 @@ security_scheme = APIKeyHTTPBearer(auto_error=False)
 class APIKeyValidator:
     """Validates API keys against environment variables"""
     
-    def __init__(self):
+    def __init__(self, auto_error: bool = True):
+        self.auto_error = auto_error
         self.db_token = self._load_db_token()
     
-    def _load_db_token(self) -> str:
-        """Load DB_TOKEN from environment with validation"""
-        token = os.getenv('DB_TOKEN')
+    def _load_db_token(self) -> Optional[str]:
+        """Load DB_TOKEN from environment with optional validation"""
+        token = os.getenv('DB_TOKEN', None)
         if not token:
-            raise ValueError("DB_TOKEN environment variable is required")
+            if self.auto_error:
+                raise ValueError("DB_TOKEN environment variable is required")
+            else:
+                logger.warning("DB_TOKEN environment variable is not set - authentication will fail")
+                return None
         
         if SECURITY_CONFIG['ENABLE_SECURITY_LOGGING']:
             masked_token = self._mask_token(token)
@@ -84,7 +89,11 @@ class APIKeyValidator:
     
     def validate_api_key(self, provided_key: str) -> bool:
         """Validate provided API key against DB_TOKEN using constant-time comparison"""
-        if not provided_key or not self.db_token:
+        if not provided_key:
+            return False
+        
+        if not self.db_token:
+            logger.warning("Cannot validate API key - DB_TOKEN is not configured")
             return False
         
         # Use constant-time comparison to prevent timing attacks
@@ -107,11 +116,11 @@ class APIKeyValidator:
 # Global validator instance (initialized lazily)
 api_key_validator = None
 
-def get_api_key_validator():
+def get_api_key_validator(auto_error: bool = True):
     """Get or create global API key validator instance"""
     global api_key_validator
     if api_key_validator is None:
-        api_key_validator = APIKeyValidator()
+        api_key_validator = APIKeyValidator(auto_error=auto_error)
     return api_key_validator
 
 # Rate limiter setup with SlowAPI
@@ -156,59 +165,92 @@ def get_api_key_from_request() -> Optional[str]:
     
     return None
 
-def validate_api_key_dependency() -> str:
-    """FastAPI-style dependency for API key validation"""
+def validate_api_key_dependency(auto_error: bool = True) -> Optional[str]:
+    """FastAPI-style dependency for API key validation with optional auto_error"""
     api_key = get_api_key_from_request()
     ip_address = flask_request.remote_addr or 'unknown'
     
-    validator = get_api_key_validator()
+    validator = get_api_key_validator(auto_error=auto_error)
     
     if not api_key:
         validator.log_auth_attempt(False, ip_address)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing API key",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
+        if auto_error:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing API key",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+        return None
     
     if not validator.validate_api_key(api_key):
         validator.log_auth_attempt(False, ip_address, api_key)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
+        if auto_error:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid API key",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+        return None
     
     validator.log_auth_attempt(True, ip_address, api_key)
     return api_key
 
-def require_api_key(f):
-    """Flask decorator for API key authentication"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        api_key = get_api_key_from_request()
-        ip_address = flask_request.remote_addr or 'unknown'
-        validator = get_api_key_validator()
+def require_api_key(auto_error: bool = True):
+    """Flask decorator for API key authentication with optional auto_error"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            api_key = get_api_key_from_request()
+            ip_address = flask_request.remote_addr or 'unknown'
+            
+            try:
+                validator = get_api_key_validator(auto_error=auto_error)
+            except ValueError as e:
+                if auto_error:
+                    return jsonify({
+                        "error": "Authentication unavailable",
+                        "message": "Server authentication is not configured"
+                    }), 503
+                else:
+                    logger.warning(f"Authentication unavailable: {e}")
+                    # Allow request to proceed without authentication
+                    g.current_api_key = None
+                    return f(*args, **kwargs)
+            
+            if not api_key:
+                validator.log_auth_attempt(False, ip_address)
+                if auto_error:
+                    return jsonify({
+                        "error": "Missing API key",
+                        "message": "Authorization header with Bearer token or X-API-KEY header required"
+                    }), 401
+                else:
+                    g.current_api_key = None
+                    return f(*args, **kwargs)
+            
+            if not validator.validate_api_key(api_key):
+                validator.log_auth_attempt(False, ip_address, api_key)
+                if auto_error:
+                    return jsonify({
+                        "error": "Invalid API key",
+                        "message": "The provided API key is not valid"
+                    }), 401
+                else:
+                    g.current_api_key = None
+                    return f(*args, **kwargs)
+            
+            validator.log_auth_attempt(True, ip_address, api_key)
+            g.current_api_key = api_key
+            return f(*args, **kwargs)
         
-        if not api_key:
-            validator.log_auth_attempt(False, ip_address)
-            return jsonify({
-                "error": "Missing API key",
-                "message": "Authorization header with Bearer token or X-API-KEY header required"
-            }), 401
-        
-        if not validator.validate_api_key(api_key):
-            validator.log_auth_attempt(False, ip_address, api_key)
-            return jsonify({
-                "error": "Invalid API key",
-                "message": "The provided API key is not valid"
-            }), 401
-        
-        validator.log_auth_attempt(True, ip_address, api_key)
-        g.current_api_key = api_key
-        return f(*args, **kwargs)
+        return decorated_function
     
-    return decorated_function
+    if callable(auto_error):  # Handle @require_api_key without parentheses
+        func = auto_error
+        auto_error = True
+        return decorator(func)
+    
+    return decorator
 
 def rate_limit(limit_string: str = None):
     """Rate limiting decorator using SlowAPI"""

@@ -20,10 +20,12 @@ logger = logging.getLogger(__name__)
 health_bp = Blueprint('health', __name__)
 
 def check_environment_variables() -> Dict[str, Any]:
-    """Check presence of required environment variables"""
-    required_vars = [
-        'DB_TOKEN',
-        'OPENAI_API_KEY'
+    """Check presence of recommended environment variables"""
+    recommended_vars = [
+        'X_API_KEY',      # Primary API key
+        'API_KEY',        # Alternative API key (config.py looks for both) 
+        'DB_TOKEN',       # Database/auth token
+        'OPENAI_API_KEY'  # OpenAI API key
     ]
     
     optional_vars = [
@@ -35,21 +37,21 @@ def check_environment_variables() -> Dict[str, Any]:
     
     env_status = {
         'status': 'healthy',
-        'required_vars': {},
+        'recommended_vars': {},
         'optional_vars': {}
     }
     
-    missing_required = []
+    missing_recommended = []
     
-    # Check required variables
-    for var in required_vars:
+    # Check recommended variables
+    for var in recommended_vars:
         present = bool(os.getenv(var))
-        env_status['required_vars'][var] = {
+        env_status['recommended_vars'][var] = {
             'present': present,
             'masked_value': _mask_env_var(var) if present else None
         }
         if not present:
-            missing_required.append(var)
+            missing_recommended.append(var)
     
     # Check optional variables
     for var in optional_vars:
@@ -59,9 +61,11 @@ def check_environment_variables() -> Dict[str, Any]:
             'value': os.getenv(var) if present else None
         }
     
-    if missing_required:
-        env_status['status'] = 'unhealthy'
-        env_status['missing_required'] = missing_required
+    # Mark as degraded (not unhealthy) if recommended vars are missing
+    if missing_recommended:
+        env_status['status'] = 'degraded'
+        env_status['missing_recommended'] = missing_recommended
+        env_status['warning'] = 'Some recommended environment variables are missing. Features may be limited.'
     
     return env_status
 
@@ -72,7 +76,7 @@ def _mask_env_var(var_name: str) -> str:
         return None
     
     # Variables that should be fully masked
-    sensitive_vars = ['DB_TOKEN', 'OPENAI_API_KEY', 'SECRET_KEY']
+    sensitive_vars = ['DB_TOKEN', 'OPENAI_API_KEY', 'SECRET_KEY', 'X_API_KEY', 'API_KEY']
     
     if var_name in sensitive_vars:
         if len(value) <= 8:

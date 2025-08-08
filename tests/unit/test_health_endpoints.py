@@ -228,15 +228,15 @@ class TestHealthEndpoints:
             assert 'tmp_disk_space' in service_checks
 
     @patch.dict(os.environ, {}, clear=True)
-    def test_detailed_health_endpoint_returns_503_when_missing_required_vars(self, client):
-        """Test that /health/detailed returns 503 when required environment variables are missing"""
+    def test_detailed_health_endpoint_returns_200_when_missing_required_vars(self, client):
+        """Test that /health/detailed returns 200 even when required environment variables are missing"""
         with patch('subprocess.run', side_effect=Exception("FFmpeg not found")), \
              patch('os.path.exists', return_value=False):
             
             response = client.get('/health/detailed')
             
-            # Should return 503 Service Unavailable when missing required vars
-            assert response.status_code == 503
+            # Should always return 200 but with degraded status
+            assert response.status_code == 200
             data = response.get_json()
             
             assert data['status'] == "degraded"
@@ -365,6 +365,156 @@ class TestHealthEndpointsPerformance:
             assert (end_time - start_time) < 1.0
 
 
+class TestHealthEndpointsOptionalVars:
+    """Test suite for health endpoints with missing optional variables"""
+
+    @pytest.fixture
+    def client(self):
+        """Create a test client for the Flask app"""
+        app = create_app()
+        app.config['TESTING'] = True
+        return app.test_client()
+
+    @patch.dict(os.environ, {
+        'PORT': '8080',
+        'PYTHONUNBUFFERED': '1', 
+        'BUILD_NUMBER': '200',
+        'WHISPER_CACHE_DIR': '/tmp/whisper_cache'
+        # Intentionally omitting all optional vars
+    })
+    def test_detailed_health_without_optional_vars_returns_200(self, client):
+        """Test that /health/detailed returns 200 even when all optional env vars are missing"""
+        with patch('os.path.exists', return_value=True), \
+             patch('os.access', return_value=True), \
+             patch('subprocess.run') as mock_subprocess, \
+             patch('shutil.disk_usage', return_value=(100*1024**3, 50*1024**3, 50*1024**3)):
+            
+            # Mock successful FFmpeg check
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_subprocess.return_value = mock_result
+            
+            response = client.get('/health/detailed')
+            
+            # Should return 200 regardless of missing optional vars
+            assert response.status_code == 200
+            data = response.get_json()
+            
+            # Should be healthy since only optional vars are missing
+            assert data['status'] == "healthy"
+            
+            # Check that optional vars are marked as "missing (optional)"
+            env_vars = data['environment_variables']
+            optional_vars = ['YOUTUBE_SERVICE_URL', 'GUNICORN_WORKERS', 'GUNICORN_TIMEOUT', 'MAX_QUEUE_LENGTH']
+            
+            for var in optional_vars:
+                assert var in env_vars
+                assert env_vars[var] == "missing (optional)"
+            
+            # Missing optional vars should be tracked
+            assert 'missing_dependencies' in data
+            assert 'optional' in data['missing_dependencies']
+            assert len(data['missing_dependencies']['optional']) == len(optional_vars)
+            
+            # Should have informational warnings about optional vars
+            warnings = data['warnings']
+            optional_warnings = [w for w in warnings if 'optional env var' in w]
+            assert len(optional_warnings) == len(optional_vars)
+
+    @patch.dict(os.environ, {
+        'PORT': '8080',
+        'PYTHONUNBUFFERED': '1', 
+        'BUILD_NUMBER': '200',
+        'WHISPER_CACHE_DIR': '/tmp/whisper_cache',
+        'YOUTUBE_SERVICE_URL': 'http://youtube-service:8080',
+        'GUNICORN_WORKERS': '4'
+        # Partial optional vars - some present, some missing
+    })
+    def test_detailed_health_with_partial_optional_vars(self, client):
+        """Test that /health/detailed properly reports mix of present/missing optional vars"""
+        with patch('os.path.exists', return_value=True), \
+             patch('os.access', return_value=True), \
+             patch('subprocess.run') as mock_subprocess, \
+             patch('shutil.disk_usage', return_value=(100*1024**3, 50*1024**3, 50*1024**3)):
+            
+            # Mock successful FFmpeg check
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_subprocess.return_value = mock_result
+            
+            response = client.get('/health/detailed')
+            
+            assert response.status_code == 200
+            data = response.get_json()
+            
+            env_vars = data['environment_variables']
+            
+            # Present optional vars should be marked as "present"
+            assert env_vars['YOUTUBE_SERVICE_URL'] == "present"
+            assert env_vars['GUNICORN_WORKERS'] == "present"
+            
+            # Missing optional vars should be marked as "missing (optional)"
+            assert env_vars['GUNICORN_TIMEOUT'] == "missing (optional)"
+            assert env_vars['MAX_QUEUE_LENGTH'] == "missing (optional)"
+            
+            # Should track only the actually missing optional vars
+            missing_optional = data['missing_dependencies']['optional']
+            assert 'GUNICORN_TIMEOUT' in missing_optional
+            assert 'MAX_QUEUE_LENGTH' in missing_optional
+            assert 'YOUTUBE_SERVICE_URL' not in missing_optional
+            assert 'GUNICORN_WORKERS' not in missing_optional
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_detailed_health_with_no_env_vars_at_all(self, client):
+        """Test that /health/detailed handles complete absence of environment variables gracefully"""
+        with patch('subprocess.run', side_effect=Exception("FFmpeg not found")), \
+             patch('os.path.exists', return_value=False):
+            
+            response = client.get('/health/detailed')
+            
+            # Should still return 200 (never fails)
+            assert response.status_code == 200
+            data = response.get_json()
+            
+            # Should be degraded due to missing required vars
+            assert data['status'] == "degraded"
+            
+            # All required vars should be missing
+            required_vars = ['PORT', 'PYTHONUNBUFFERED', 'BUILD_NUMBER', 'WHISPER_CACHE_DIR']
+            for var in required_vars:
+                assert data['environment_variables'][var] == "missing (required)"
+            
+            # All optional vars should be missing
+            optional_vars = ['YOUTUBE_SERVICE_URL', 'GUNICORN_WORKERS', 'GUNICORN_TIMEOUT', 'MAX_QUEUE_LENGTH']
+            for var in optional_vars:
+                assert data['environment_variables'][var] == "missing (optional)"
+            
+            # Should have comprehensive warnings
+            warnings = data['warnings']
+            assert len(warnings) > 0
+            
+            # Should have warnings for both required and optional vars
+            required_warnings = [w for w in warnings if 'required env var' in w]
+            optional_warnings = [w for w in warnings if 'optional env var' in w]
+            assert len(required_warnings) == len(required_vars)
+            assert len(optional_warnings) == len(optional_vars)
+
+    def test_basic_health_never_fails_regardless_of_env_vars(self, client):
+        """Test that /health endpoint always returns 200 regardless of environment variables"""
+        with patch.dict(os.environ, {}, clear=True):
+            response = client.get('/health')
+            
+            # Basic health should always return 200
+            assert response.status_code == 200
+            data = response.get_json()
+            
+            # Should always report as healthy (basic endpoint doesn't check env vars)
+            assert data['status'] == "healthy"
+            assert 'timestamp' in data
+            assert 'version' in data
+            assert 'service' in data
+
+
 class TestHealthEndpointsEdgeCases:
     """Edge case tests for health endpoints"""
 
@@ -401,8 +551,8 @@ class TestHealthEndpointsEdgeCases:
             
             response = client.get('/health/detailed')
             
-            # Should still return a response, not crash
-            assert response.status_code in [200, 503]
+            # Should always return 200 (never fails) but with warnings
+            assert response.status_code == 200
             data = response.get_json()
             
             # Should have warnings about the errors

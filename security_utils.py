@@ -38,8 +38,9 @@ SECURITY_CONFIG = {
 class SecretManager:
     """Manages API secrets and environment variables securely."""
     
-    def __init__(self):
-        self.required_secrets = [
+    def __init__(self, require_secrets: bool = True):
+        self.require_secrets = require_secrets
+        self.recommended_secrets = [
             'OPENAI_API_KEY',
             'DB_TOKEN'
         ]
@@ -50,13 +51,16 @@ class SecretManager:
             'S3_ACCESS_KEY',
             'S3_SECRET_KEY'
         ]
-        self._validate_required_secrets()
+        if require_secrets:
+            self._validate_required_secrets()
+        else:
+            self._warn_missing_secrets()
     
     def _validate_required_secrets(self) -> None:
         """Validate that all required secrets are present."""
         missing_secrets = []
         
-        for secret in self.required_secrets:
+        for secret in self.recommended_secrets:
             if not os.getenv(secret):
                 missing_secrets.append(secret)
         
@@ -66,6 +70,22 @@ class SecretManager:
             raise ValueError(error_msg)
         
         logger.info("All required secrets validated successfully")
+    
+    def _warn_missing_secrets(self) -> None:
+        """Warn about missing recommended secrets without failing."""
+        missing_secrets = []
+        
+        for secret in self.recommended_secrets:
+            if not os.getenv(secret):
+                missing_secrets.append(secret)
+        
+        if missing_secrets:
+            logger.warning(
+                f"Missing recommended environment variables: {', '.join(missing_secrets)}. "
+                "Some features may not work properly."
+            )
+        else:
+            logger.info("All recommended secrets are configured")
     
     def get_secret(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """Safely retrieve a secret from environment variables."""
@@ -95,7 +115,11 @@ class SecretManager:
         """Validate provided API key against stored token."""
         stored_token = self.get_secret('DB_TOKEN')
         
-        if not stored_token or not provided_key:
+        if not stored_token:
+            logger.warning("Cannot validate API key - DB_TOKEN is not configured")
+            return False
+        
+        if not provided_key:
             return False
         
         # Use constant-time comparison to prevent timing attacks
@@ -232,9 +256,18 @@ class SecurityAuditLogger:
         
         # Add file handler for security logs
         if SECURITY_CONFIG['ENABLE_AUDIT_LOGGING']:
-            handler = logging.FileHandler('logs/security_audit.log')
-            handler.setFormatter(formatter)
-            self.audit_logger.addHandler(handler)
+            try:
+                # Ensure logs directory exists
+                os.makedirs('logs', exist_ok=True)
+                handler = logging.FileHandler('logs/security_audit.log')
+                handler.setFormatter(formatter)
+                self.audit_logger.addHandler(handler)
+            except Exception as e:
+                # Fall back to console logging if file logging fails
+                console_handler = logging.StreamHandler()
+                console_handler.setFormatter(formatter)
+                self.audit_logger.addHandler(console_handler)
+                logger.warning(f"Could not set up file logging, using console: {e}")
     
     def log_authentication_attempt(self, success: bool, ip_address: str, user_agent: str = None):
         """Log authentication attempts."""
@@ -328,7 +361,7 @@ class RateLimiter:
         self.last_cleanup = now
 
 # Global instances
-secret_manager = SecretManager()
+secret_manager = SecretManager(require_secrets=False)
 security_headers = SecurityHeaders()
 input_validator = InputValidator()
 audit_logger = SecurityAuditLogger()
@@ -424,7 +457,7 @@ def security_health_check() -> Dict[str, Any]:
         # Check secret manager
         health['components']['secret_manager'] = {
             'status': 'healthy',
-            'required_secrets': len(secret_manager.required_secrets),
+            'recommended_secrets': len(secret_manager.recommended_secrets),
             'optional_secrets': len(secret_manager.optional_secrets)
         }
         

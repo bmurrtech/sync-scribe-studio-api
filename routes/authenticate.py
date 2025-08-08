@@ -23,11 +23,14 @@ import os
 
 auth_bp = Blueprint('auth', __name__)
 
-API_KEY = os.environ.get('API_KEY')
+API_KEY = os.getenv('API_KEY')
 
 @auth_bp.route('/authenticate', methods=['GET'])
 @queue_task_wrapper(bypass_queue=True)
 def authenticate_endpoint(**kwargs):
+    if not API_KEY:
+        return "Authentication unavailable - API_KEY not configured", "/authenticate", 503
+    
     api_key = request.headers.get('X-API-Key')
     if api_key == API_KEY:
         return "Authorized", "/authenticate", 200

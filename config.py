@@ -19,10 +19,33 @@
 import os
 import logging
 
+# Configure logging for better debugging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def get_api_key():
+    """Helper function to get the API key.
+    
+    This function checks for API keys in the following order:
+    1. X_API_KEY environment variable (primary)
+    2. API_KEY environment variable (fallback)
+    
+    Returns:
+        str or None: The API key if available, None otherwise.
+    """
+    return os.getenv('X_API_KEY') or os.getenv('API_KEY')
+
+
 # Retrieve the API key from environment variables
-API_KEY = os.environ.get('X_API_KEY') or os.environ.get('API_KEY')
+# This is done at module level for backward compatibility
+API_KEY = get_api_key()
 if not API_KEY:
-    raise ValueError("X_API_KEY environment variable is not set")
+    logger.warning(
+        "X_API_KEY environment variable is not set. "
+        "Some features may not work properly. "
+        "Please set X_API_KEY or API_KEY environment variable."
+    )
 
 # Storage path setting
 LOCAL_STORAGE_PATH = os.environ.get('LOCAL_STORAGE_PATH', '/tmp')
