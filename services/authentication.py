@@ -23,6 +23,9 @@ from config import API_KEY
 def authenticate(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
+        if not API_KEY:
+            return jsonify({"message": "Authentication unavailable - API_KEY not configured"}), 503
+        
         api_key = request.headers.get('X-API-Key')
         
         if api_key != API_KEY:

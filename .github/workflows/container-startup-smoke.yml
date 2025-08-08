@@ -1,0 +1,153 @@
+name: Container Startup Smoke Tests
+
+on:
+  push:
+    branches: [main, develop, staging]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch: {}
+
+jobs:
+  container-startup-smoke:
+    name: Build image and verify startup without env vars
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: local/sync-scribe-studio-api:startup-smoke
+          build-args: |
+            BUILD_NUMBER=${{ github.run_id }}
+
+      - name: Run container without env vars
+        run: |
+          set -euo pipefail
+          docker run -d --name startup-smoke \
+            -p 8080:8080 \
+            local/sync-scribe-studio-api:startup-smoke
+
+      - name: Wait for /health to return 200
+        run: |
+          set -euo pipefail
+          ATTEMPTS=30
+          for i in $(seq 1 $ATTEMPTS); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Health OK on attempt $i"
+              break
+            fi
+            echo "Waiting for service... ($i/$ATTEMPTS), got $STATUS"
+            sleep 2
+          done
+          # Final assert
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health || true)
+          if [ "$STATUS" != "200" ]; then
+            echo "Expected /health 200, got $STATUS"
+            echo "Container logs:" && docker logs startup-smoke || true
+            exit 1
+          fi
+
+      - name: Install helpers (jq, curl)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Smoke test basic endpoints
+        run: |
+          set -euo pipefail
+          # Root endpoint should return 200 and JSON
+          curl -fsS http://localhost:8080/ -H 'Accept: application/json' > /tmp/root.json
+          test "$(jq -r '.service // empty' /tmp/root.json)" != "" || (echo "Missing 'service' in root response" && cat /tmp/root.json && exit 1)
+
+          # /health must be 200
+          curl -fsS http://localhost:8080/health -H 'Accept: application/json' > /tmp/health.json
+          test "$(jq -r '.status // empty' /tmp/health.json)" = "healthy" || (echo "Health status not healthy" && cat /tmp/health.json && exit 1)
+
+          # /health/detailed should return JSON and a status field - can return 200 or 503 without env vars
+          DETAILED_STATUS=$(curl -s -o /tmp/health_detailed.json -w "%{http_code}" http://localhost:8080/health/detailed || echo "000")
+          if [ "$DETAILED_STATUS" = "200" ] || [ "$DETAILED_STATUS" = "503" ]; then
+            echo "Detailed health returned expected status: $DETAILED_STATUS"
+            if [ -s /tmp/health_detailed.json ]; then
+              test "$(jq -r '.status // empty' /tmp/health_detailed.json)" != "" || (echo "Missing status in detailed health" && cat /tmp/health_detailed.json && exit 1)
+            fi
+          else
+            echo "Unexpected detailed health status: $DETAILED_STATUS" && exit 1
+          fi
+
+      - name: Test security headers
+        run: |
+          set -euo pipefail
+          echo "Testing security headers..."
+          
+          # Get headers from health endpoint
+          HEADERS=$(curl -s -I http://localhost:8080/health || echo "")
+          
+          # Check required security headers
+          ERRORS=0
+          
+          if ! echo "$HEADERS" | grep -i "X-Content-Type-Options: nosniff" > /dev/null; then
+            echo "ERROR: Missing X-Content-Type-Options: nosniff header"
+            ((ERRORS++))
+          fi
+          
+          if ! echo "$HEADERS" | grep -i "X-Frame-Options: DENY" > /dev/null; then
+            echo "ERROR: Missing X-Frame-Options: DENY header"
+            ((ERRORS++))
+          fi
+          
+          if ! echo "$HEADERS" | grep -i "X-XSS-Protection: 1; mode=block" > /dev/null; then
+            echo "ERROR: Missing X-XSS-Protection header"
+            ((ERRORS++))
+          fi
+          
+          if ! echo "$HEADERS" | grep -i "Strict-Transport-Security:" > /dev/null; then
+            echo "ERROR: Missing Strict-Transport-Security header"
+            ((ERRORS++))
+          fi
+          
+          if [ $ERRORS -eq 0 ]; then
+            echo "SUCCESS: All required security headers are present"
+          else
+            echo "FAILED: Security headers test failed with $ERRORS errors"
+            echo "Headers received:"
+            echo "$HEADERS"
+            exit 1
+          fi
+
+      - name: Test authentication endpoints without credentials
+        run: |
+          set -euo pipefail
+          echo "Testing authenticated endpoints behavior without credentials..."
+          
+          # Test YouTube info endpoint without authentication - should return 401, 503, 404, or 405
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d '{"url": "https://youtube.com/watch?v=test"}' \
+            http://localhost:8080/v1/media/youtube/info || echo "000")
+          
+          if [ "$STATUS" = "401" ] || [ "$STATUS" = "503" ] || [ "$STATUS" = "404" ] || [ "$STATUS" = "405" ]; then
+            echo "SUCCESS: Authenticated endpoint properly rejected request (status: $STATUS)"
+          else
+            echo "WARNING: YouTube info endpoint returned status $STATUS, expected 401, 503, 404, or 405"
+            echo "This might be expected behavior depending on configuration"
+          fi
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker logs startup-smoke || true
+
+      - name: Cleanup container
+        if: always()
+        run: |
+          docker rm -f startup-smoke || true

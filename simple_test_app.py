@@ -79,6 +79,12 @@ def detailed_health():
     if not os.getenv('API_KEY'):
         warnings.append("API_KEY not set - authentication may not work")
     
+    if not os.getenv('DB_TOKEN'):
+        warnings.append("DB_TOKEN not set - security authentication unavailable")
+    
+    if not os.getenv('OPENAI_API_KEY'):
+        warnings.append("OPENAI_API_KEY not set - AI features may not work")
+    
     return jsonify({
         "status": "healthy",
         "timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),

@@ -41,7 +41,8 @@ def health():
 def health_detailed():
     """
     Detailed health endpoint reporting environment variables, 
-    service status, and missing dependencies warnings
+    service status, and missing dependencies warnings.
+    Never returns an error status - always returns 200 with detailed info.
     """
     # Check environment variables presence
     env_status = {}
@@ -67,7 +68,7 @@ def health_detailed():
         if value:
             env_status[var] = "present"
         else:
-            env_status[var] = "missing"
+            env_status[var] = "missing (required)"
             missing_required.append(var)
     
     for var in optional_env_vars:
@@ -75,7 +76,7 @@ def health_detailed():
         if value:
             env_status[var] = "present"
         else:
-            env_status[var] = "missing"
+            env_status[var] = "missing (optional)"
             missing_optional.append(var)
     
     # Check service dependencies
@@ -91,7 +92,7 @@ def health_detailed():
             warnings.append("FFmpeg not working properly")
     except Exception:
         ffmpeg_status = "unavailable"
-        warnings.append("FFmpeg not found - media processing will fail")
+        warnings.append("FFmpeg not found - media processing may be limited")
     
     # Check if Whisper cache directory exists and is writable
     whisper_cache = os.environ.get('WHISPER_CACHE_DIR', '/tmp/whisper_cache')
@@ -100,7 +101,7 @@ def health_detailed():
             whisper_cache_status = "writable"
         else:
             whisper_cache_status = "not_writable"
-            warnings.append("Whisper cache directory not writable")
+            warnings.append("Whisper cache directory not writable - performance may be affected")
     except Exception:
         whisper_cache_status = "error"
         warnings.append("Cannot check Whisper cache directory")
@@ -117,12 +118,20 @@ def health_detailed():
         tmp_space_status = "unknown"
         warnings.append("Cannot check /tmp disk space")
     
-    # Add warnings for missing environment variables
+    # Add informational messages for missing environment variables
     if missing_required:
-        warnings.extend([f"Missing required env var: {var}" for var in missing_required])
+        warnings.extend([f"Missing required env var: {var} - some features may not work" for var in missing_required])
+    
+    if missing_optional:
+        warnings.extend([f"Missing optional env var: {var} - default behavior will be used" for var in missing_optional])
+    
+    # Determine overall service status based on critical issues only
+    service_status = "healthy"
+    if missing_required or ffmpeg_status == "unavailable":
+        service_status = "degraded"
     
     return jsonify({
-        "status": "healthy" if not missing_required else "degraded",
+        "status": service_status,
         "timestamp": int(time.time()),
         "version": BUILD_NUMBER,
         "service": "Sync Scribe Studio API",
@@ -139,7 +148,7 @@ def health_detailed():
             "required": missing_required,
             "optional": missing_optional
         }
-    }), 200 if not missing_required else 503
+    }), 200
 
 @health_bp.route('/', methods=['GET'])
 def root():

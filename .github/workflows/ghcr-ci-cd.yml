@@ -242,11 +242,97 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+  # Deploy to Docker Hub
+  deploy-dockerhub:
+    name: 'Deploy to Docker Hub'
+    runs-on: ubuntu-latest
+    needs: [docker-build-test, container-security]
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata for Docker Hub - New Registry
+        id: meta-dockerhub-new
+        uses: docker/metadata-action@v5
+        with:
+          images: syncscribestudio/syncscribestudio-api
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=build-${{ github.run_number }}
+
+      - name: Extract metadata for Docker Hub - Legacy Registry
+        id: meta-dockerhub-legacy
+        uses: docker/metadata-action@v5
+        with:
+          images: bmurrtech/sync-scribe-studio-api
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=build-${{ github.run_number }}
+
+      - name: Build and push to Docker Hub - New Registry (Primary)
+        id: push-dockerhub-new
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta-dockerhub-new.outputs.tags }}
+          labels: ${{ steps.meta-dockerhub-new.outputs.labels }}
+          build-args: |
+            BUILD_NUMBER=${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Build and push to Docker Hub - Legacy Registry (Deprecated)
+        id: push-dockerhub-legacy
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta-dockerhub-legacy.outputs.tags }}
+          labels: ${{ steps.meta-dockerhub-legacy.outputs.labels }}
+          build-args: |
+            BUILD_NUMBER=${{ github.run_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Mark legacy Docker Hub tags as deprecated
+        run: |
+          echo "📝 Updating Docker Hub descriptions to mark deprecated tags..."
+          
+          # Update legacy repository description to indicate deprecation
+          curl -X PATCH \
+            -H "Content-Type: application/json" \
+            -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" \
+            -d '{
+              "description": "[DEPRECATED] Please use syncscribestudio/syncscribestudio-api:latest instead. This repository contains outdated tags (cloud-run-clean, cloud-run-amd64) and will not receive updates.",
+              "full_description": "# ⚠️ DEPRECATED REPOSITORY\n\n**This Docker Hub repository is deprecated as of $(date +"%Y-%m-%d"). Please migrate to the new repository:**\n\n## New Repository (Recommended)\n\n**Primary Repository**: `syncscribestudio/syncscribestudio-api:latest`\n\n```bash\n# New deployment command\ndocker pull syncscribestudio/syncscribestudio-api:latest\ngcloud run deploy sync-scribe-studio-api \\\n  --image syncscribestudio/syncscribestudio-api:latest \\\n  --platform managed\n```\n\n## Deprecated Tags\n\nThe following tags in this repository are **outdated and deprecated**:\n- `cloud-run-clean` - Deprecated, use `syncscribestudio/syncscribestudio-api:latest`\n- `cloud-run-amd64` - Deprecated, use `syncscribestudio/syncscribestudio-api:latest`\n\n## Migration Guide\n\n1. Update your deployment scripts to use `syncscribestudio/syncscribestudio-api:latest`\n2. Update any CI/CD pipelines to pull from the new repository\n3. Remove references to deprecated tags\n\nFor the latest documentation and deployment guides, visit the [GitHub repository](https://github.com/bmurrtech/sync-scribe-studio-api).\n\n---\n\n*This legacy repository is maintained for backward compatibility but will receive no further updates.*"
+            }' \
+            https://hub.docker.com/v2/repositories/bmurrtech/sync-scribe-studio-api/ || echo "Warning: Could not update Docker Hub description"
+
   # Deploy to GHCR
   deploy-ghcr:
     name: 'Deploy to GHCR'
     runs-on: ubuntu-latest
-    needs: [docker-build-test, container-security]
+    needs: [docker-build-test, container-security, deploy-dockerhub]
     if: github.event_name != 'pull_request'
     permissions:
       contents: read
@@ -305,7 +391,9 @@ jobs:
         run: |
           echo "## 🚀 Latest Deployment" >> deployment-info.md
           echo "" >> deployment-info.md
-          echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}\`" >> deployment-info.md
+          echo "- **Primary Docker Hub Image**: \`syncscribestudio/syncscribestudio-api:build-${{ github.run_number }}\`" >> deployment-info.md
+          echo "- **GHCR Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}\`" >> deployment-info.md
+          echo "- **Legacy Docker Hub Image**: \`bmurrtech/sync-scribe-studio-api:build-${{ github.run_number }}\` (DEPRECATED)" >> deployment-info.md
           echo "- **Digest**: \`${{ steps.push.outputs.digest }}\`" >> deployment-info.md
           echo "- **Build**: #${{ github.run_number }}" >> deployment-info.md
           echo "- **Commit**: \`${{ github.sha }}\`" >> deployment-info.md
@@ -313,15 +401,34 @@ jobs:
           echo "" >> deployment-info.md
           echo "### Quick Deploy Commands" >> deployment-info.md
           echo "" >> deployment-info.md
+          echo "#### Option 1: Docker Hub - New Registry (RECOMMENDED)" >> deployment-info.md
           echo "\`\`\`bash" >> deployment-info.md
-          echo "# Pull the image" >> deployment-info.md
+          echo "# Pull from new Docker Hub registry" >> deployment-info.md
+          echo "docker pull syncscribestudio/syncscribestudio-api:build-${{ github.run_number }}" >> deployment-info.md
+          echo "" >> deployment-info.md
+          echo "# Deploy to Cloud Run" >> deployment-info.md
+          echo "gcloud run deploy sync-scribe-studio-api \\" >> deployment-info.md
+          echo "  --image syncscribestudio/syncscribestudio-api:build-${{ github.run_number }} \\" >> deployment-info.md
+          echo "  --platform managed \\" >> deployment-info.md
+          echo "  --set-env-vars=\"X_API_KEY=your-secure-api-key\"" >> deployment-info.md
+          echo "\`\`\`" >> deployment-info.md
+          echo "" >> deployment-info.md
+          echo "#### Option 2: GHCR (GitHub Container Registry)" >> deployment-info.md
+          echo "\`\`\`bash" >> deployment-info.md
+          echo "# Pull from GHCR" >> deployment-info.md
           echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}" >> deployment-info.md
           echo "" >> deployment-info.md
           echo "# Run locally" >> deployment-info.md
           echo "docker run -p 8080:8080 \\" >> deployment-info.md
-          echo "  -e API_KEY=your-api-key \\" >> deployment-info.md
-          echo "  -e DB_TOKEN=your-db-token \\" >> deployment-info.md
+          echo "  -e X_API_KEY=your-secure-api-key \\" >> deployment-info.md
+          echo "  -e PORT=8080 \\" >> deployment-info.md
           echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}" >> deployment-info.md
+          echo "\`\`\`" >> deployment-info.md
+          echo "" >> deployment-info.md
+          echo "#### ⚠️ Option 3: Legacy Docker Hub (DEPRECATED)" >> deployment-info.md
+          echo "\`\`\`bash" >> deployment-info.md
+          echo "# DEPRECATED - Use Option 1 instead" >> deployment-info.md
+          echo "docker pull bmurrtech/sync-scribe-studio-api:build-${{ github.run_number }}" >> deployment-info.md
           echo "\`\`\`" >> deployment-info.md
           
           cat deployment-info.md
@@ -362,7 +469,7 @@ jobs:
         id: deploy
         run: |
           gcloud run deploy sync-scribe-studio-api \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }} \
+            --image syncscribestudio/syncscribestudio-api:build-${{ github.run_number }} \
             --platform managed \
             --region us-central1 \
             --allow-unauthenticated \
