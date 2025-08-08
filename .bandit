@@ -3,30 +3,11 @@
 # More info: https://bandit.readthedocs.io/en/latest/config.html
 
 [bandit]
-# Exclude specific directories
-exclude_dirs = [
-    "/tests", 
-    "/test", 
-    "*/test*", 
-    "*/tests/*",
-    "/node_modules",
-    "*/node_modules/*",
-    "/docs",
-    "/fonts", 
-    "/pm",
-    "*/venv*",
-    "*/.venv*",
-    "*/__pycache__*",
-    "*/migrations/*"
-]
-
 # Test IDs to skip (use with caution)
-skips = [
-    "B104",  # hardcoded_bind_all_interfaces - Required for Docker/Cloud Run (0.0.0.0)
-    "B108",  # hardcoded_tmp_directory - Standard for containerized environments (/tmp)
-    "B113",  # request_without_timeout - Internal service calls are acceptable
-    "B201",  # flask_debug_true - Only in example/test files
-]
+skips = B104,B108,B113,B201
+
+# Exclude specific directories
+exclude = /tests,/test,*/test*,*/tests/*,/node_modules,*/node_modules/*,/docs,/fonts,/pm,*/venv*,*/.venv*,*/__pycache__*,*/migrations/*
 
 # Test IDs to include (security-focused)
 tests = [
