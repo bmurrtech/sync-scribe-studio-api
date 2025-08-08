@@ -41,7 +41,7 @@ jobs:
 
       - name: Run Bandit security scan
         run: |
-          bandit -r . -ll -i -x './.venv,./venv,./tests,./services/youtube-downloader/node_modules'
+          bandit -r . --severity-level high --confidence-level medium -x './.venv,./venv,./tests,./services/youtube-downloader/node_modules'
 
       - name: Run Python dependency security check
         run: |

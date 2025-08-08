@@ -3,11 +3,11 @@
 # More info: https://bandit.readthedocs.io/en/latest/config.html
 
 [bandit]
-# Test IDs to skip (use with caution)
-skips = B104,B108,B113,B201
+# Test IDs to skip - These are acceptable for containerized cloud deployments
+skips = B104,B108,B113
 
 # Exclude specific directories
-exclude = /tests,/test,*/test*,*/tests/*,/node_modules,*/node_modules/*,/docs,/fonts,/pm,*/venv*,*/.venv*,*/__pycache__*,*/migrations/*
+exclude_dirs = /tests,/test,*/test*,*/tests/*,/node_modules,*/node_modules/*,/docs,/fonts,/pm,*/venv*,*/.venv*,*/__pycache__*,*/migrations/*
 
 # Test IDs to include (security-focused)
 tests = [
