@@ -67,34 +67,16 @@ Replace expensive SaaS subscriptions and save thousands annually:
 
 ### A. Google Cloud Run (GCP)
 
-**Quick Deploy (Recommended - New Registry):**
 ```bash
-# Deploy using new syncscribestudio registry (RECOMMENDED)
+# Deploy to Google Cloud Run
 gcloud run deploy sync-scribe-studio-api \
-  --image syncscribestudio/syncscribestudio-api:latest \
+  --image bmurrtech/sync-scribe-studio-api:latest \
   --platform managed \
   --port 8080 \
   --allow-unauthenticated \
   --region us-central1 \
   --memory 2Gi \
   --cpu 2 \
-  --set-env-vars="X_API_KEY=your-secure-api-key"
-```
-
-**Alternative Deployment Options:**
-```bash
-# Deploy using GHCR
-./scripts/deploy-from-ghcr.sh \
-  --platform cloud-run \
-  --tag latest \
-  --project your-gcp-project \
-  --env-file .env.production
-
-# ⚠️ DEPRECATED: Legacy Docker Hub registry
-# Please migrate to syncscribestudio/syncscribestudio-api:latest
-gcloud run deploy sync-scribe-studio-api \
-  --image bmurrtech/sync-scribe-studio-api:latest \
-  --platform managed \
   --set-env-vars="X_API_KEY=your-secure-api-key"
 ```
 
@@ -146,24 +128,18 @@ gcloud run deploy sync-scribe-studio-api \
 
 ## 🐳 Docker Build & Run
 
-### Container Registry Options
-
-#### Docker Hub - New Registry (RECOMMENDED)
-
-**Primary repository with latest updates:**
-
 ```bash
-# Pull from new Docker Hub registry (RECOMMENDED)
-docker pull syncscribestudio/syncscribestudio-api:latest
+# Pull from Docker Hub
+docker pull bmurrtech/sync-scribe-studio-api:latest
 
 # Run with X-API-KEY authentication
 docker run -p 8080:8080 \
   -e X_API_KEY=your-secure-api-key \
   -e PORT=8080 \
-  syncscribestudio/syncscribestudio-api:latest
+  bmurrtech/sync-scribe-studio-api:latest
 ```
 
-#### GitHub Container Registry (GHCR)
+### GitHub Container Registry (GHCR)
 
 **Multi-platform support (linux/amd64, linux/arm64):**
 
@@ -178,44 +154,6 @@ docker run -p 8080:8080 \
   ghcr.io/bmurrtech/sync-scribe-studio-api:latest
 ```
 
-#### ⚠️ Docker Hub - Legacy Registry (DEPRECATED)
-
-**Legacy repository - please migrate to new registry:**
-
-```bash
-# DEPRECATED - Contains outdated tags (cloud-run-clean, cloud-run-amd64)
-# Please use syncscribestudio/syncscribestudio-api:latest instead
-docker pull bmurrtech/sync-scribe-studio-api:latest
-
-# Migration command:
-docker pull syncscribestudio/syncscribestudio-api:latest
-```
-
-**Deprecated Tags in Legacy Repository:**
-- `bmurrtech/sync-scribe-studio-api:cloud-run-clean` ❌ **DEPRECATED** 
-- `bmurrtech/sync-scribe-studio-api:cloud-run-amd64` ❌ **DEPRECATED**
-- `bmurrtech/sync-scribe-studio-api:latest` ⚠️ **Will be deprecated soon**
-
-**Migration Path:**
-- Replace `bmurrtech/sync-scribe-studio-api` → `syncscribestudio/syncscribestudio-api`
-
----
-
-## 🎯 Latest Deployment Status
-
-✅ **Environment Variables**: Optional for container startup - graceful fallback  
-✅ **Docker Hub**: Migrated to `syncscribestudio/syncscribestudio-api:latest`  
-✅ **Health Endpoints**: Enhanced monitoring with detailed status  
-✅ **CI/CD Pipeline**: Automated testing, security scanning, and deployment  
-🔄 **Production Ready**: Container starts without secrets, production-grade monitoring
-- Update all deployment scripts and CI/CD pipelines
-- Remove references to deprecated tags
-
-**Available Image Tags:**
-- `latest` - Latest stable release
-- `build-{NUMBER}` - Specific CI build (e.g., `build-123`)  
-- `v{VERSION}` - Semantic releases (e.g., `v1.2.3`)
-
 ### Local Development Build
 
 ```bash
@@ -228,30 +166,16 @@ docker run -p 8080:8080 --env-file .env.local sync-scribe-studio-api
 
 #### Apple Silicon (M1/M2/M3) Platform Notes
 
-**For local development and testing:**
 ```bash
 # Build for your native ARM architecture (faster locally)
 docker build -t sync-scribe-studio-api .
-```
 
-**For Cloud Run deployment compatibility:**
-```bash
-# Build specifically for linux/amd64 (Cloud Run requirement)
+# For Cloud Run deployment compatibility (linux/amd64)
 docker build --platform linux/amd64 -t sync-scribe-studio-api .
 
-# Tag and push to new Docker Hub registry (RECOMMENDED)
-docker tag sync-scribe-studio-api syncscribestudio/syncscribestudio-api:latest
-docker push syncscribestudio/syncscribestudio-api:latest
-
-# Deploy to Cloud Run using new Docker Hub image
-gcloud run deploy sync-scribe-studio-api \
-  --image syncscribestudio/syncscribestudio-api:latest \
-  --platform managed \
-  --set-env-vars="X_API_KEY=your-secure-api-key"
-
-# Legacy deployment (DEPRECATED)
-# docker tag sync-scribe-studio-api bmurrtech/sync-scribe-studio-api:latest
-# gcloud run deploy sync-scribe-studio-api --image bmurrtech/sync-scribe-studio-api:latest
+# Tag and push to Docker Hub
+docker tag sync-scribe-studio-api bmurrtech/sync-scribe-studio-api:latest
+docker push bmurrtech/sync-scribe-studio-api:latest
 ```
 
 ---
