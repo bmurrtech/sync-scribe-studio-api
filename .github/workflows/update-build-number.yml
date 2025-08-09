@@ -1,0 +1,37 @@
+name: Update Build Number
+on:
+  push:
+    branches:
+      - build
+permissions:
+  contents: write
+jobs:
+  update-build-number:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.ACTION_BYPASS }}
+      
+      - name: Update build number
+        run: |
+          if [ ! -f build_number.txt ]; then
+            echo "0" > build_number.txt
+          fi
+          build_number=$(( $(cat build_number.txt) + 1 ))
+          echo $build_number > build_number.txt
+          
+          # Update the version in your code file (e.g., version.py)
+          echo "BUILD_NUMBER = $build_number" > version.py
+          
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add build_number.txt version.py
+          git commit -m "Build $build_number: Bump build number [skip ci]"
+          git push origin build
+
+      - name: Push changes to testing branch
+        run: |
+          git push origin build:testing --force

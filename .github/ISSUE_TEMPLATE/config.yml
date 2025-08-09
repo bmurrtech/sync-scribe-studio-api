@@ -1,0 +1,7 @@
+contact_links:
+  - name: Help or Questions?
+    url: https://github.com/bmurrtech/sync-scribe-studio/discussions
+    about: Ask questions and get help from the community.
+
+blank_issues_enabled: true
+# Allow blank issues for now?

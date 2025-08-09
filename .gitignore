@@ -1,0 +1,15 @@
+.env_variables.json
+.DS_Store
+.env_shell.json
+.env
+
+# PM workspace (never delete the directory; keep it out of VCS and build contexts)
+# Purpose: reference, lifecycle tracking, ADRs, summaries, PRDs, reusable snippets
+# Always ignored in Git; ensure similar rules exist in .dockerignore and other tools
+/pm/
+/pm/*
+# Explicit subfolders (documented for clarity)
+/pm/adr/
+/pm/summaries/
+/pm/PRDs/
+/pm/snippets/
