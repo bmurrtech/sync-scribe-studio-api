@@ -22,8 +22,7 @@ health_bp = Blueprint('health', __name__)
 def check_environment_variables() -> Dict[str, Any]:
     """Check presence of recommended environment variables"""
     recommended_vars = [
-        'X_API_KEY',      # Primary API key
-        'API_KEY',        # Alternative API key (config.py looks for both) 
+        'API_KEY',        # Primary API key
         'DB_TOKEN',       # Database/auth token
         'OPENAI_API_KEY'  # OpenAI API key
     ]
@@ -76,7 +75,7 @@ def _mask_env_var(var_name: str) -> str:
         return None
     
     # Variables that should be fully masked
-    sensitive_vars = ['DB_TOKEN', 'OPENAI_API_KEY', 'SECRET_KEY', 'X_API_KEY', 'API_KEY']
+    sensitive_vars = ['DB_TOKEN', 'OPENAI_API_KEY', 'SECRET_KEY', 'API_KEY']
     
     if var_name in sensitive_vars:
         if len(value) <= 8:
