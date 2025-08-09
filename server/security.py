@@ -20,10 +20,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from flask import request as flask_request, jsonify, g
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from .utils.env import get_required_env
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -62,23 +59,44 @@ class APIKeyValidator:
     
     def __init__(self, auto_error: bool = True):
         self.auto_error = auto_error
-        self.db_token = self._load_db_token()
+        self._db_token = None
+        # Initialize and validate token at construction time if auto_error=True
+        if auto_error:
+            # This will raise ValueError if DB_TOKEN is missing
+            try:
+                get_required_env('DB_TOKEN')
+            except RuntimeError as e:
+                raise ValueError(str(e))
     
-    def _load_db_token(self) -> Optional[str]:
-        """Load DB_TOKEN from environment with optional validation"""
-        token = os.getenv('DB_TOKEN', None)
-        if not token:
+    @property
+    def db_token(self) -> Optional[str]:
+        """Get the cached DB_TOKEN or retrieve it from environment"""
+        if self._db_token is None:
+            self._db_token = self._get_db_token()
+        return self._db_token
+    
+    def _get_db_token(self) -> Optional[str]:
+        """Get DB_TOKEN from environment at request time with optional validation"""
+        try:
             if self.auto_error:
-                raise ValueError("DB_TOKEN environment variable is required")
+                token = get_required_env('DB_TOKEN')
             else:
-                logger.warning("DB_TOKEN environment variable is not set - authentication will fail")
+                token = os.getenv('DB_TOKEN')
+                if not token:
+                    logger.warning("DB_TOKEN environment variable is not set - authentication will fail")
+                    return None
+            
+            if SECURITY_CONFIG['ENABLE_SECURITY_LOGGING']:
+                masked_token = self._mask_token(token)
+                logger.info(f"DB_TOKEN loaded: {masked_token}")
+            
+            return token
+        except RuntimeError as e:
+            if self.auto_error:
+                raise ValueError(str(e))
+            else:
+                logger.warning(f"DB_TOKEN unavailable: {e}")
                 return None
-        
-        if SECURITY_CONFIG['ENABLE_SECURITY_LOGGING']:
-            masked_token = self._mask_token(token)
-            logger.info(f"DB_TOKEN loaded: {masked_token}")
-        
-        return token
     
     def _mask_token(self, token: str, reveal_chars: int = 4) -> str:
         """Mask token for logging purposes (first4****last4)"""
@@ -92,12 +110,13 @@ class APIKeyValidator:
         if not provided_key:
             return False
         
-        if not self.db_token:
+        db_token = self._get_db_token()
+        if not db_token:
             logger.warning("Cannot validate API key - DB_TOKEN is not configured")
             return False
         
         # Use constant-time comparison to prevent timing attacks
-        return secrets.compare_digest(self.db_token, provided_key)
+        return secrets.compare_digest(db_token, provided_key)
     
     def log_auth_attempt(self, success: bool, ip_address: str, token: str = None) -> None:
         """Log authentication attempts with masked tokens"""
@@ -286,47 +305,57 @@ def _check_rate_limit(identifier: str, limit_string: str) -> bool:
     """Check if request is within rate limits"""
     global _rate_limit_storage, _rate_limit_cleanup_last
     
-    # Parse limit string (e.g., "100/minute", "10/second")
     try:
-        count, period = limit_string.split('/')
-        count = int(count)
+        # Parse limit string (e.g., "100/minute", "10/second")
+        try:
+            count, period = limit_string.split('/')
+            count = int(count)
+            
+            if period.startswith('second'):
+                window_seconds = 1
+            elif period.startswith('minute'):
+                window_seconds = 60
+            elif period.startswith('hour'):
+                window_seconds = 3600
+            else:
+                window_seconds = 60  # default to minute
+        except:
+            count, window_seconds = 100, 60  # default
         
-        if period.startswith('second'):
-            window_seconds = 1
-        elif period.startswith('minute'):
-            window_seconds = 60
-        elif period.startswith('hour'):
-            window_seconds = 3600
-        else:
-            window_seconds = 60  # default to minute
-    except:
-        count, window_seconds = 100, 60  # default
-    
-    now = datetime.now()
-    
-    # Periodic cleanup
-    if now - _rate_limit_cleanup_last > timedelta(minutes=5):
-        _cleanup_rate_limit_storage(now, window_seconds * 2)
-        _rate_limit_cleanup_last = now
-    
-    # Initialize storage for identifier
-    if identifier not in _rate_limit_storage:
-        _rate_limit_storage[identifier] = []
-    
-    # Remove expired entries
-    cutoff = now - timedelta(seconds=window_seconds)
-    _rate_limit_storage[identifier] = [
-        timestamp for timestamp in _rate_limit_storage[identifier]
-        if timestamp > cutoff
-    ]
-    
-    # Check limit
-    if len(_rate_limit_storage[identifier]) >= count:
-        return False
-    
-    # Add current request
-    _rate_limit_storage[identifier].append(now)
-    return True
+        now = datetime.now()
+        
+        # Periodic cleanup
+        try:
+            if now - _rate_limit_cleanup_last > timedelta(minutes=5):
+                _cleanup_rate_limit_storage(now, window_seconds * 2)
+                _rate_limit_cleanup_last = now
+        except Exception as e:
+            logger.warning(f"Rate limit cleanup failed: {e}")
+        
+        # Initialize storage for identifier
+        if identifier not in _rate_limit_storage:
+            _rate_limit_storage[identifier] = []
+        
+        # Remove expired entries
+        cutoff = now - timedelta(seconds=window_seconds)
+        _rate_limit_storage[identifier] = [
+            timestamp for timestamp in _rate_limit_storage[identifier]
+            if timestamp > cutoff
+        ]
+        
+        # Check limit
+        if len(_rate_limit_storage[identifier]) >= count:
+            return False
+        
+        # Add current request
+        _rate_limit_storage[identifier].append(now)
+        return True
+        
+    except Exception as e:
+        # If rate limiting fails, allow the request to proceed
+        # This ensures service availability even if rate limiting breaks
+        logger.error(f"Rate limiting error for {identifier}: {e}")
+        return True
 
 def _cleanup_rate_limit_storage(now: datetime, window_seconds: int):
     """Clean up expired rate limit entries"""
@@ -348,6 +377,23 @@ def setup_security(app):
     """Setup security middleware and components for Flask app"""
     # Initialize security middleware
     security_middleware = SecurityMiddleware(app)
+    
+    # Add Flask startup validation using the newer Flask syntax
+    def startup_validate_api_key():
+        """Validate API_KEY presence and log masked value at startup"""
+        try:
+            api_key = get_required_env('API_KEY')
+            # Create a temporary validator for masking
+            temp_validator = APIKeyValidator(auto_error=False)
+            masked_key = temp_validator._mask_token(api_key)
+            logger.info(f"API_KEY validated at startup: {masked_key}")
+        except RuntimeError as e:
+            logger.warning(f"API_KEY validation at startup: {e}")
+    
+    # Register the startup event with the newer Flask CLI runner method
+    # This will execute during the first request in development
+    with app.app_context():
+        startup_validate_api_key()
     
     # Add security headers
     @app.after_request
