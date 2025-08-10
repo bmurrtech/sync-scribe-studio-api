@@ -41,11 +41,12 @@ def process_audio_concatenate(media_urls, job_id, webhook_url=None):
                 # Write absolute paths to the concat list
                 concat_file.write(f"file '{os.path.abspath(input_file)}'\n")
 
-        # Use the concat demuxer to concatenate the audio files without re-encoding
+        # Use the concat demuxer to concatenate the audio files
+        # Re-encode to ensure compatibility when concatenating different formats
         (
-            ffmpeg.input(concat_file_path, format='concat', safe=0).
-                output(output_path, c='copy').
-                run(overwrite_output=True)
+            ffmpeg.input(concat_file_path, format='concat', safe=0)
+                .output(output_path, acodec='libmp3lame', audio_bitrate='192k')
+                .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
         )
 
         # Clean up input files

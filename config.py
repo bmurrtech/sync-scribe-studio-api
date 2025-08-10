@@ -34,12 +34,20 @@ GCP_BUCKET_NAME = os.environ.get('GCP_BUCKET_NAME', '')
 def validate_env_vars(provider):
 
     """ Validate the necessary environment variables for the selected storage provider """
+    if provider == 'GCP':
+        # For GCP, we need bucket name and either GCP_SA_CREDENTIALS or GCP_SA_KEY_BASE64
+        if not os.getenv('GCP_BUCKET_NAME'):
+            raise ValueError(f"Missing environment variable for GCP storage: GCP_BUCKET_NAME")
+        if not os.getenv('GCP_SA_CREDENTIALS') and not os.getenv('GCP_SA_KEY_BASE64'):
+            raise ValueError(f"Missing environment variables for GCP storage: GCP_SA_CREDENTIALS or GCP_SA_KEY_BASE64")
+        return  # Valid GCP config
+    
     required_vars = {
-        'GCP': ['GCP_BUCKET_NAME', 'GCP_SA_CREDENTIALS'],
         'S3': ['S3_ENDPOINT_URL', 'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_BUCKET_NAME', 'S3_REGION'],
         'S3_DO': ['S3_ENDPOINT_URL', 'S3_ACCESS_KEY', 'S3_SECRET_KEY']
     }
     
-    missing_vars = [var for var in required_vars[provider] if not os.getenv(var)]
-    if missing_vars:
-        raise ValueError(f"Missing environment variables for {provider} storage: {', '.join(missing_vars)}")
+    if provider in required_vars:
+        missing_vars = [var for var in required_vars[provider] if not os.getenv(var)]
+        if missing_vars:
+            raise ValueError(f"Missing environment variables for {provider} storage: {', '.join(missing_vars)}")

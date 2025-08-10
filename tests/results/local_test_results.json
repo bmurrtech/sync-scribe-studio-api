@@ -1,0 +1,256 @@
+{
+  "test_type": "local",
+  "base_url": "http://localhost:8080",
+  "timestamp": "2025-08-10T17:43:01.859525",
+  "summary": {
+    "total": 23,
+    "passed": 9,
+    "failed": 14,
+    "pass_rate": 39.130434782608695
+  },
+  "results": [
+    {
+      "endpoint": "/health",
+      "name": "Health Check",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": 200,
+      "response_time": 0.003,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/toolkit/authenticate",
+      "name": "Toolkit: Authenticate",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": 200,
+      "response_time": 0.01,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/toolkit/test",
+      "name": "Toolkit: Test",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": 200,
+      "response_time": 0.004,
+      "is_sync": false,
+      "error": "Expected 200, got 500"
+    },
+    {
+      "endpoint": "/v1/toolkit/job/status",
+      "name": "Toolkit: Job Status",
+      "status": "PASS",
+      "response_code": 404,
+      "expected_code": [
+        200,
+        404
+      ],
+      "response_time": 0.006,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/toolkit/jobs/status",
+      "name": "Toolkit: Jobs Status",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        404
+      ],
+      "response_time": 0.004,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/audio/concatenate",
+      "name": "Audio: Concatenate",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 10.0
+    },
+    {
+      "endpoint": "/v1/code/execute/python",
+      "name": "Code: Execute Python",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 0.051,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/ffmpeg/compose",
+      "name": "FFmpeg: Compose",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 4.486,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 500"
+    },
+    {
+      "endpoint": "/v1/image/convert/video",
+      "name": "Image: Convert to Video",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 0.099,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 500"
+    },
+    {
+      "endpoint": "/v1/image/screenshot/webpage",
+      "name": "Image: Screenshot Webpage",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 0.785,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 500"
+    },
+    {
+      "endpoint": "/v1/media/convert",
+      "name": "Media: Convert",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 9.244,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 500"
+    },
+    {
+      "endpoint": "/v1/media/convert/mp3",
+      "name": "Media: Convert to MP3",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 7.864,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 500"
+    },
+    {
+      "endpoint": "/v1/media/feedback",
+      "name": "Media: Feedback",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        500
+      ],
+      "response_time": 0.004,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/media/transcribe",
+      "name": "Media: Transcribe",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 10.0
+    },
+    {
+      "endpoint": "/v1/media/silence",
+      "name": "Media: Silence Detection",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 3.629,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/media/metadata",
+      "name": "Media: Metadata",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 3.404,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/s3/upload",
+      "name": "S3: Upload",
+      "status": "PASS",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202,
+        500
+      ],
+      "response_time": 1.079,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/video/caption",
+      "name": "Video: Caption",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 10.0
+    },
+    {
+      "endpoint": "/v1/video/concatenate",
+      "name": "Video: Concatenate",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 10.0
+    },
+    {
+      "endpoint": "/v1/video/thumbnail",
+      "name": "Video: Thumbnail",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 10.0
+    },
+    {
+      "endpoint": "/v1/video/cut",
+      "name": "Video: Cut",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 10.0
+    },
+    {
+      "endpoint": "/v1/video/split",
+      "name": "Video: Split",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 10.0
+    },
+    {
+      "endpoint": "/v1/video/trim",
+      "name": "Video: Trim",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 10.0
+    }
+  ]
+}

@@ -1,0 +1,299 @@
+{
+  "test_type": "cloud",
+  "base_url": "https://no-code-architects-toolkit-v1-121285693414.us-east4.run.app",
+  "timestamp": "2025-08-10T17:47:29.947972",
+  "summary": {
+    "total": 23,
+    "passed": 19,
+    "failed": 4,
+    "pass_rate": 82.6086956521739
+  },
+  "results": [
+    {
+      "endpoint": "/health",
+      "name": "Health Check",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": 200,
+      "response_time": 0.089,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/toolkit/authenticate",
+      "name": "Toolkit: Authenticate",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": 200,
+      "response_time": 0.088,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/toolkit/test",
+      "name": "Toolkit: Test",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": 200,
+      "response_time": 0.491,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/toolkit/job/status",
+      "name": "Toolkit: Job Status",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        404
+      ],
+      "response_time": 0.086,
+      "is_sync": false,
+      "error": "Expected [200, 404], got 500"
+    },
+    {
+      "endpoint": "/v1/toolkit/jobs/status",
+      "name": "Toolkit: Jobs Status",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        404
+      ],
+      "response_time": 0.084,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/audio/concatenate",
+      "name": "Audio: Concatenate",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 7.218,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 500"
+    },
+    {
+      "endpoint": "/v1/code/execute/python",
+      "name": "Code: Execute Python",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 0.127,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/ffmpeg/compose",
+      "name": "FFmpeg: Compose",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 3.377,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/image/convert/video",
+      "name": "Image: Convert to Video",
+      "status": "FAIL",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 0.11,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 500"
+    },
+    {
+      "endpoint": "/v1/image/screenshot/webpage",
+      "name": "Image: Screenshot Webpage",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202,
+        404
+      ],
+      "response_time": 1.604,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/media/convert",
+      "name": "Media: Convert",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 10.854,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/media/convert/mp3",
+      "name": "Media: Convert to MP3",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 10.036,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/media/feedback",
+      "name": "Media: Feedback",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        500
+      ],
+      "response_time": 0.085,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/media/transcribe",
+      "name": "Media: Transcribe",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 18.704,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/media/silence",
+      "name": "Media: Silence Detection",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 3.649,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/media/metadata",
+      "name": "Media: Metadata",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 2.942,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/s3/upload",
+      "name": "S3: Upload",
+      "status": "PASS",
+      "response_code": 500,
+      "expected_code": [
+        200,
+        202,
+        500
+      ],
+      "response_time": 0.399,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/video/caption",
+      "name": "Video: Caption",
+      "status": "FAIL",
+      "error": "Request timeout",
+      "response_time": 30.0
+    },
+    {
+      "endpoint": "/v1/video/concatenate",
+      "name": "Video: Concatenate",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 7.504,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/video/thumbnail",
+      "name": "Video: Thumbnail",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 2.826,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/video/cut",
+      "name": "Video: Cut",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 18.386,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/video/split",
+      "name": "Video: Split",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 5.468,
+      "is_sync": false,
+      "error": null
+    },
+    {
+      "endpoint": "/v1/video/trim",
+      "name": "Video: Trim",
+      "status": "PASS",
+      "response_code": 200,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 3.302,
+      "is_sync": false,
+      "error": null
+    }
+  ]
+}

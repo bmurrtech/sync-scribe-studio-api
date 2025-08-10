@@ -18,6 +18,7 @@
 
 import os
 import json
+import base64
 import logging
 from google.oauth2 import service_account
 from google.cloud import storage
@@ -32,21 +33,47 @@ STORAGE_PATH = "/tmp/"
 gcs_client = None
 
 def initialize_gcp_client():
+    # Try multiple ways to get GCP credentials
     GCP_SA_CREDENTIALS = os.getenv('GCP_SA_CREDENTIALS')
-
-    if not GCP_SA_CREDENTIALS:
-        #logger.warning("GCP credentials not found. Skipping GCS client initialization.")
-        return None  # Skip client initialization if credentials are missing
+    GCP_SA_KEY_BASE64 = os.getenv('GCP_SA_KEY_BASE64')
+    
+    credentials_json = None
+    
+    # First try GCP_SA_CREDENTIALS (direct JSON)
+    if GCP_SA_CREDENTIALS:
+        try:
+            # Check if it's already valid JSON
+            credentials_json = GCP_SA_CREDENTIALS
+            json.loads(credentials_json)  # Validate it's proper JSON
+        except json.JSONDecodeError:
+            logger.warning("GCP_SA_CREDENTIALS is not valid JSON")
+            credentials_json = None
+    
+    # If no direct credentials, try base64 encoded
+    if not credentials_json and GCP_SA_KEY_BASE64:
+        try:
+            # Decode base64 to get JSON string
+            credentials_json = base64.b64decode(GCP_SA_KEY_BASE64).decode('utf-8')
+            json.loads(credentials_json)  # Validate it's proper JSON
+            logger.info("Using base64 decoded GCP credentials")
+        except Exception as e:
+            logger.warning(f"Failed to decode GCP_SA_KEY_BASE64: {e}")
+            credentials_json = None
+    
+    if not credentials_json:
+        logger.warning("No valid GCP credentials found. Skipping GCS client initialization.")
+        return None
 
     # Define the required scopes for Google Cloud Storage
     GCS_SCOPES = ['https://www.googleapis.com/auth/devstorage.full_control']
 
     try:
-        credentials_info = json.loads(GCP_SA_CREDENTIALS)
+        credentials_info = json.loads(credentials_json)
         gcs_credentials = service_account.Credentials.from_service_account_info(
             credentials_info,
             scopes=GCS_SCOPES
         )
+        logger.info("Successfully initialized GCS client")
         return storage.Client(credentials=gcs_credentials)
     except Exception as e:
         logger.error(f"Failed to initialize GCS client: {e}")

@@ -1,9 +1,3 @@
-# Ignore Python cache and compiled files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
 # Ignore environment and config files
 .env
 .env_variables.json
@@ -23,6 +17,52 @@ docs/
 # Ignore repository/configuration files not needed in image
 .github/
 .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+# Ignore any venv-style directories (e.g., venv_3133, venv-py, .venv-anything)
+.venv/
+.venv*/
+venv/
+venv*/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+archives/
+temp/
+*.mp3
+*.mp4
+*.wav
+*.json
+!package.json
+!package-lock.json
 
 # Ignore PM workspace (project management artifacts) from build context
 # Purpose: reference, lifecycle tracking, ADRs, summaries, PRDs, reusable snippets
