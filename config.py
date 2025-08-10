@@ -31,6 +31,18 @@ LOCAL_STORAGE_PATH = os.environ.get('LOCAL_STORAGE_PATH', '/tmp')
 GCP_SA_CREDENTIALS = os.environ.get('GCP_SA_CREDENTIALS', '')
 GCP_BUCKET_NAME = os.environ.get('GCP_BUCKET_NAME', '')
 
+# Feature Flags
+# ASR (Automatic Speech Recognition) Configuration
+ENABLE_FASTER_WHISPER = os.environ.get('ENABLE_FASTER_WHISPER', 'false').lower() == 'true'
+
+# Faster-Whisper ASR Settings
+ASR_MODEL_ID = os.environ.get('ASR_MODEL_ID', 'openai/whisper-base')
+ASR_DEVICE = os.environ.get('ASR_DEVICE', 'cpu')  # Options: 'cpu', 'cuda', 'auto'
+ASR_COMPUTE_TYPE = os.environ.get('ASR_COMPUTE_TYPE', 'int8')  # Options: 'int8', 'float16', 'float32'
+ASR_BEAM_SIZE = int(os.environ.get('ASR_BEAM_SIZE', '5'))  # Beam search width
+ASR_BATCH_SIZE = int(os.environ.get('ASR_BATCH_SIZE', '16'))  # Batch size for processing
+ASR_CACHE_DIR = os.environ.get('ASR_CACHE_DIR', os.path.join(LOCAL_STORAGE_PATH, 'asr_cache'))
+
 def validate_env_vars(provider):
 
     """ Validate the necessary environment variables for the selected storage provider """
