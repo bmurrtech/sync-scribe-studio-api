@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.087" timestamp="2025-08-10T19:05:55.977977-04:00" hostname="Mac.lan"><testcase classname="tests.asr.test_asr_transcribe.TestTranscriptionOutput" name="test_faster_whisper_segment_mapping" time="0.002" /></testsuite></testsuites>

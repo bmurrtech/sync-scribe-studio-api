@@ -26,6 +26,7 @@ import os
 import time
 from version import BUILD_NUMBER  # Import the BUILD_NUMBER
 from app_utils import log_job_status, discover_and_register_blueprints  # Import the discover_and_register_blueprints function
+from startup import perform_startup_tasks, get_initialization_status, is_ready  # Import startup utilities
 
 MAX_QUEUE_LENGTH = int(os.environ.get('MAX_QUEUE_LENGTH', 0))
 
@@ -34,6 +35,11 @@ def create_app():
     
     # Register security features (headers, CORS, etc.)
     register_security(app)
+    
+    # Perform startup tasks including model warm-up if enabled
+    # This happens during app factory initialization so it runs once per worker
+    startup_result = perform_startup_tasks()
+    app.startup_result = startup_result
 
     # Create a queue to hold tasks
     task_queue = Queue()
@@ -209,12 +215,47 @@ app = create_app()
 @rate_limit()  # Apply rate limiting (100 requests per minute by default)
 # @require_api_key  # Uncomment to require API key authentication for health check
 def health_check():
-    """Health check endpoint to verify service is running."""
-    return jsonify({
-        "status": "healthy",
+    """Health check endpoint to verify service is running and ready.
+    
+    Returns different status codes based on readiness:
+    - 200: Service is healthy and ready
+    - 503: Service is starting up (model loading)
+    """
+    # Get initialization status
+    init_status = get_initialization_status()
+    
+    # Check if application is ready
+    ready = is_ready()
+    
+    # Build response
+    response = {
+        "status": "healthy" if ready else "starting",
+        "ready": ready,
         "build_number": BUILD_NUMBER,
-        "timestamp": time.time()
-    }), 200
+        "timestamp": time.time(),
+        "initialization": {
+            "model_loaded": init_status.get('model_loaded', False),
+            "model_load_time": init_status.get('model_load_time'),
+            "initialized_at": init_status.get('initialized_at'),
+        }
+    }
+    
+    # Add error information if present
+    if init_status.get('model_error'):
+        response["initialization"]["error"] = init_status['model_error']
+    
+    # Add warm-up configuration info
+    response["configuration"] = {
+        "warm_up_enabled": os.environ.get('ENABLE_MODEL_WARM_UP', 'false').lower() == 'true',
+        "asr_enabled": os.environ.get('ENABLE_FASTER_WHISPER', 'false').lower() == 'true',
+    }
+    
+    # Return 503 if not ready (for container health checks)
+    # This will prevent traffic from being routed until model is loaded
+    if not ready:
+        return jsonify(response), 503
+    
+    return jsonify(response), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)

@@ -1,3 +1,6 @@
+# GPU requirements with CUDA support for CI matrix
+# Default ctranslate2==4.4.0 includes CUDA 12.1 support
+# Install with: pip install -r requirements-gpu.txt
 Flask
 Werkzeug
 requests

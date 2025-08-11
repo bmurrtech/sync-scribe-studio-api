@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-08-10T23:22:15.135558",
+  "stats": {
+    "count": 20,
+    "min": 0.001,
+    "max": 14.898,
+    "avg": 4.3057,
+    "median": 3.691,
+    "p95": 14.898,
+    "p99": 14.898,
+    "total_time": 86.114,
+    "endpoint_times": {
+      "Health Check": 0.001,
+      "Toolkit: Authenticate": 0.001,
+      "Toolkit: Test": 0.26,
+      "Toolkit: Job Status": 0.005,
+      "Toolkit: Jobs Status": 0.002,
+      "Audio: Concatenate": 13.664,
+      "Code: Execute Python": 0.028,
+      "FFmpeg: Compose": 4.323,
+      "Image: Screenshot Webpage": 0.745,
+      "Media: Convert": 8.801,
+      "Media: Convert to MP3": 8.597,
+      "Media: Feedback": 0.003,
+      "Media: Silence Detection": 4.269,
+      "Media: Metadata": 3.736,
+      "S3: Upload": 2.089,
+      "Video: Concatenate": 12.233,
+      "Video: Thumbnail": 3.426,
+      "Video: Cut": 14.898,
+      "Video: Split": 5.342,
+      "Video: Trim": 3.691
+    }
+  },
+  "pass_rate": 86.95652173913044
+}

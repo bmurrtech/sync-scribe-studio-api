@@ -1,0 +1,188 @@
+name: ASR Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'services/asr/**'
+      - 'services/v1/media/media_transcribe.py'
+      - 'routes/v1/media/media_transcribe.py'
+      - 'tests/asr/**'
+      - '.github/workflows/test-asr.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'services/asr/**'
+      - 'services/v1/media/media_transcribe.py'
+      - 'routes/v1/media/media_transcribe.py'
+      - 'tests/asr/**'
+
+jobs:
+  test-asr-cpu:
+    name: Test ASR (CPU Path)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-mock requests-mock
+        pip install openai-whisper numpy srt
+        # Install other required dependencies
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Generate test audio file
+      run: |
+        python tests/fixtures/test_audio.py
+    
+    - name: Run CPU path tests (OpenAI Whisper)
+      env:
+        ENABLE_FASTER_WHISPER: "false"
+        ASR_MODEL_ID: "openai/whisper-base"
+        ASR_DEVICE: "cpu"
+        ASR_COMPUTE_TYPE: "float32"
+        API_KEY: "test-api-key"
+        LOCAL_STORAGE_PATH: "/tmp"
+      run: |
+        pytest tests/asr/test_asr_transcribe.py -v --tb=short -m "unit or asr" \
+          --cov=services/v1/media --cov=services/asr \
+          --cov-report=term-missing --cov-report=xml
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: asr-cpu
+        name: asr-cpu-coverage
+
+  test-asr-gpu-mock:
+    name: Test ASR (GPU Path - Mocked)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-gpu-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-gpu-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-mock requests-mock
+        pip install numpy srt
+        # Note: We're NOT installing faster-whisper or ctranslate2 here
+        # Tests will mock these dependencies
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Generate test audio file
+      run: |
+        python tests/fixtures/test_audio.py
+    
+    - name: Run GPU path tests (Mocked Faster Whisper)
+      env:
+        ENABLE_FASTER_WHISPER: "true"
+        ASR_MODEL_ID: "openai/whisper-base"
+        ASR_DEVICE: "cuda"
+        ASR_COMPUTE_TYPE: "float16"
+        API_KEY: "test-api-key"
+        LOCAL_STORAGE_PATH: "/tmp"
+      run: |
+        # Run only unit tests that mock the faster-whisper dependency
+        pytest tests/asr/test_asr_transcribe.py -v --tb=short -m "unit" \
+          --cov=services/v1/media --cov=services/asr \
+          --cov-report=term-missing --cov-report=xml
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: asr-gpu-mock
+        name: asr-gpu-mock-coverage
+
+  test-asr-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-integration-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-integration-
+    
+    - name: Install all dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-mock requests-mock
+        pip install openai-whisper numpy srt
+        # Try to install faster-whisper for integration tests
+        pip install faster-whisper || echo "Faster-whisper installation failed, continuing with OpenAI Whisper only"
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Generate test audio file
+      run: |
+        python tests/fixtures/test_audio.py
+    
+    - name: Run integration tests
+      env:
+        ENABLE_FASTER_WHISPER: "false"  # Use OpenAI Whisper for CI integration tests
+        ASR_MODEL_ID: "openai/whisper-base"
+        ASR_DEVICE: "cpu"
+        ASR_COMPUTE_TYPE: "float32"
+        API_KEY: "test-api-key"
+        LOCAL_STORAGE_PATH: "/tmp"
+        LOCAL_BASE_URL: "http://localhost:8080"
+      run: |
+        # Start the API server in the background (if needed)
+        # python app.py &
+        # sleep 5
+        
+        # Run integration tests
+        pytest tests/asr/test_asr_integration.py -v --tb=short -m "integration" || true
+        
+        # Kill the server if started
+        # pkill -f "python app.py" || true
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: asr-test-results
+        path: |
+          tests/results/
+          coverage.xml

@@ -17,17 +17,73 @@
 
 
 import os
-import whisper
 import srt
 from datetime import timedelta
-from whisper.utils import WriteSRT, WriteVTT
 from services.file_management import download_file
 import logging
-from config import LOCAL_STORAGE_PATH
+from config import LOCAL_STORAGE_PATH, ENABLE_FASTER_WHISPER, ASR_MODEL_ID
 
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+# Helper function to map faster-whisper segment to OpenAI format
+def _map_faster_whisper_segment(fw_segment):
+    """Map a faster-whisper segment object to OpenAI Whisper format."""
+    segment_dict = {
+        'start': fw_segment.start,
+        'end': fw_segment.end,
+        'text': fw_segment.text,
+    }
+    
+    # Map words if present
+    if hasattr(fw_segment, 'words') and fw_segment.words:
+        segment_dict['words'] = [
+            {
+                'start': word.start,
+                'end': word.end,
+                'word': word.word,
+                'probability': getattr(word, 'probability', 1.0)
+            }
+            for word in fw_segment.words
+        ]
+    
+    return segment_dict
+
+# Helper function to transcribe using faster-whisper
+def _transcribe_with_faster_whisper(model, audio_file, **kwargs):
+    """Transcribe using faster-whisper and return OpenAI-compatible result."""
+    # Extract parameters compatible with faster-whisper
+    fw_params = {
+        'beam_size': kwargs.get('beam_size', 5),
+        'language': kwargs.get('language', None),
+        'task': kwargs.get('task', 'transcribe'),
+        'word_timestamps': kwargs.get('word_timestamps', False),
+    }
+    
+    # Remove None values
+    fw_params = {k: v for k, v in fw_params.items() if v is not None}
+    
+    # Transcribe with faster-whisper
+    segments_generator, info = model.transcribe(audio_file, **fw_params)
+    
+    # Convert generator to list and map to OpenAI format
+    segments = []
+    text_parts = []
+    
+    for fw_segment in segments_generator:
+        segment = _map_faster_whisper_segment(fw_segment)
+        segments.append(segment)
+        text_parts.append(segment['text'])
+    
+    # Build OpenAI-compatible result
+    result = {
+        'text': ''.join(text_parts),
+        'segments': segments,
+        'language': info.language if info else kwargs.get('language', 'en')
+    }
+    
+    return result
 
 def process_transcribe_media(media_url, task, include_text, include_srt, include_segments, word_timestamps, response_type, language, job_id, words_per_line=None):
     """Transcribe or translate media and return the transcript/translation, SRT or VTT file path."""
@@ -36,24 +92,37 @@ def process_transcribe_media(media_url, task, include_text, include_srt, include
     logger.info(f"Downloaded media to local file: {input_filename}")
 
     try:
-        # Load a larger model for better translation quality
-        #model_size = "large" if task == "translate" else "base"
-        model_size = "base"
-        model = whisper.load_model(model_size)
-        logger.info(f"Loaded Whisper {model_size} model")
+        # Always use faster-whisper model (OpenAI whisper deprecated)
+        logger.info("Using faster-whisper model")
+        from services.asr import get_model
+        model = get_model()
+        if not model:
+            raise RuntimeError("Faster-whisper model not available. Please check ASR configuration and ensure ENABLE_FASTER_WHISPER=true")
+        
+        use_faster_whisper = True
+        logger.info(f"Loaded faster-whisper model: {ASR_MODEL_ID}")
 
         # Configure transcription/translation options
         options = {
             "task": task,
             "word_timestamps": word_timestamps,
-            "verbose": False
+            "verbose": False,
+            "language": language
         }
 
-        # Add language specification if provided
-        if language:
-            options["language"] = language
-
-        result = model.transcribe(input_filename, **options)
+        # Transcribe based on the selected model
+        if use_faster_whisper:
+            result = _transcribe_with_faster_whisper(model, input_filename, **options)
+        else:
+            # OpenAI Whisper uses a slightly different options format
+            openai_options = {
+                "task": task,
+                "word_timestamps": word_timestamps,
+                "verbose": False
+            }
+            if language:
+                openai_options["language"] = language
+            result = model.transcribe(input_filename, **openai_options)
         
         # For translation task, the result['text'] will be in English
         text = None

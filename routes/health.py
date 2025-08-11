@@ -88,8 +88,8 @@ def get_system_info():
             "error": str(e)
         }
 
-@bp.route('/health', methods=['GET'])
-def health_check():
+# @bp.route('/health', methods=['GET'])  # Disabled - using app.py health endpoint
+def health_check_disabled():
     """
     Health check endpoint - returns system and service health status
     

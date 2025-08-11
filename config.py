@@ -33,7 +33,7 @@ GCP_BUCKET_NAME = os.environ.get('GCP_BUCKET_NAME', '')
 
 # Feature Flags
 # ASR (Automatic Speech Recognition) Configuration
-ENABLE_FASTER_WHISPER = os.environ.get('ENABLE_FASTER_WHISPER', 'false').lower() == 'true'
+ENABLE_FASTER_WHISPER = os.environ.get('ENABLE_FASTER_WHISPER', 'true').lower() == 'true'
 
 # Faster-Whisper ASR Settings
 ASR_MODEL_ID = os.environ.get('ASR_MODEL_ID', 'openai/whisper-base')

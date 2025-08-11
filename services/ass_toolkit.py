@@ -20,7 +20,6 @@ import os
 import ffmpeg
 import logging
 import subprocess
-import whisper
 from datetime import timedelta
 import srt
 import re
@@ -28,7 +27,7 @@ from services.file_management import download_file
 from services.cloud_storage import upload_file  # Ensure this import is present
 import requests  # Ensure requests is imported for webhook handling
 from urllib.parse import urlparse
-from config import LOCAL_STORAGE_PATH
+from config import LOCAL_STORAGE_PATH, ASR_MODEL_ID
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -64,14 +63,53 @@ def rgb_to_ass_color(rgb_color):
 
 def generate_transcription(video_path, language='auto'):
     try:
-        model = whisper.load_model("base")
-        transcription_options = {
-            'word_timestamps': True,
-            'verbose': True,
+        # Use faster-whisper model
+        from services.asr import get_model
+        model = get_model()
+        if not model:
+            raise RuntimeError("Faster-whisper model not available. Please check ASR configuration and ensure ENABLE_FASTER_WHISPER=true")
+        
+        # Map auto to None for faster-whisper
+        fw_language = None if language == 'auto' else language
+        
+        # Transcribe with faster-whisper
+        segments_generator, info = model.transcribe(
+            video_path,
+            word_timestamps=True,
+            language=fw_language,
+            task='transcribe',
+            beam_size=5
+        )
+        
+        # Convert to expected format
+        segments = []
+        for seg in segments_generator:
+            segment_dict = {
+                'start': seg.start,
+                'end': seg.end,
+                'text': seg.text,
+                'words': []
+            }
+            
+            # Add word-level timestamps if available
+            if hasattr(seg, 'words') and seg.words:
+                segment_dict['words'] = [
+                    {
+                        'start': word.start,
+                        'end': word.end,
+                        'word': word.word,
+                        'probability': getattr(word, 'probability', 1.0)
+                    }
+                    for word in seg.words
+                ]
+            
+            segments.append(segment_dict)
+        
+        result = {
+            'segments': segments,
+            'language': info.language if info else language
         }
-        if language != 'auto':
-            transcription_options['language'] = language
-        result = model.transcribe(video_path, **transcription_options)
+        
         logger.info(f"Transcription generated successfully for video: {video_path}")
         return result
     except Exception as e:

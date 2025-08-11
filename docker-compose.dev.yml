@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # GPU variant with CUDA support
+  app-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_VARIANT: gpu
+        CUDA_VERSION: 12.1.0
+        CUDNN_VERSION: 8
+    image: sync-scribe-studio-api:gpu
+    ports:
+      - "8080:8080"
+    environment:
+      - API_KEY=${API_KEY}
+      - ENABLE_FASTER_WHISPER=true
+      - ASR_DEVICE=cuda
+      - ASR_COMPUTE_TYPE=float16
+      - ASR_MODEL_ID=openai/whisper-base
+      - GUNICORN_WORKERS=2
+      - GUNICORN_TIMEOUT=300
+      - SKIP_MODEL_WARMUP=false
+    volumes:
+      - ./local_storage:/app/local_storage
+      - model-cache-gpu:/app/asr_cache
+      - hf-cache-gpu:/app/huggingface_cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # CPU-only variant for CI or non-GPU systems
+  app-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_VARIANT: cpu
+    image: sync-scribe-studio-api:cpu
+    ports:
+      - "8081:8080"
+    environment:
+      - API_KEY=${API_KEY}
+      - ENABLE_FASTER_WHISPER=true
+      - ASR_DEVICE=cpu
+      - ASR_COMPUTE_TYPE=int8
+      - ASR_MODEL_ID=openai/whisper-base
+      - GUNICORN_WORKERS=2
+      - GUNICORN_TIMEOUT=300
+      - SKIP_MODEL_WARMUP=false
+    volumes:
+      - ./local_storage:/app/local_storage
+      - model-cache-cpu:/app/asr_cache
+      - hf-cache-cpu:/app/huggingface_cache
+
+volumes:
+  model-cache-gpu:
+  model-cache-cpu:
+  hf-cache-gpu:
+  hf-cache-cpu:

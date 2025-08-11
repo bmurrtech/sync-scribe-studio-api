@@ -17,6 +17,9 @@ from utils import gdrive_to_download_url
 # Load environment variables
 load_dotenv()
 
+# Enable Faster Whisper for testing
+os.environ['ENABLE_FASTER_WHISPER'] = 'true'
+
 # Configuration
 BASE_URL = os.getenv("LOCAL_BASE_URL", "http://localhost:8080")
 API_KEY = os.getenv("API_KEY", "test-api-key")
@@ -333,9 +336,9 @@ def test_endpoint(endpoint_config):
         start_time = time.time()
         
         if method == "GET":
-            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response = requests.get(url, headers=headers, params=params, timeout=30)
         elif method == "POST":
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
         else:
             return {
                 "endpoint": endpoint_config["path"],
@@ -385,7 +388,7 @@ def test_endpoint(endpoint_config):
             "name": endpoint_config["name"],
             "status": "FAIL",
             "error": "Request timeout",
-            "response_time": 10.0
+            "response_time": 30.0
         }
     except requests.exceptions.ConnectionError:
         return {

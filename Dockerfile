@@ -1,5 +1,26 @@
-# Base image
-FROM python:3.9-slim
+# Build arguments for CPU-only or GPU variant
+ARG BUILD_VARIANT=gpu
+ARG CUDA_VERSION=12.1.0
+ARG CUDNN_VERSION=8
+
+# Base image - use NVIDIA CUDA runtime for GPU variant, or python:3.9-slim for CPU
+FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-runtime-ubuntu22.04 AS base-gpu
+FROM python:3.9-slim AS base-cpu
+
+# Select the appropriate base image based on BUILD_VARIANT
+FROM base-${BUILD_VARIANT} AS final
+
+# Install Python 3.9 for GPU variant (CUDA image doesn't include it)
+RUN if [ "${BUILD_VARIANT}" = "gpu" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+        python3.9 \
+        python3.9-dev \
+        python3-pip \
+        python3.9-distutils && \
+        update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1 && \
+        update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
+        python -m pip install --upgrade pip; \
+    fi
 
 # Install system dependencies, build tools, and libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -164,38 +185,51 @@ RUN fc-cache -f -v
 # Set work directory
 WORKDIR /app
 
-# Set environment variable for Whisper cache
+# Set environment variables for model caching
 ENV WHISPER_CACHE_DIR="/app/whisper_cache"
+ENV ASR_CACHE_DIR="/app/asr_cache"
+ENV HF_HOME="/app/huggingface_cache"
 
-# Create cache directory (no need for chown here yet)
-RUN mkdir -p ${WHISPER_CACHE_DIR} 
+# Create cache directories
+RUN mkdir -p ${WHISPER_CACHE_DIR} ${ASR_CACHE_DIR} ${HF_HOME}
 
 # Copy the requirements file first to optimize caching
 COPY requirements.txt .
 
-# Install Python dependencies, upgrade pip 
+# Install Python dependencies, upgrade pip
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install openai-whisper && \
     pip install playwright && \
-    pip install jsonschema 
+    pip install jsonschema
+
+# Install CTranslate2 with appropriate CUDA support for GPU variant
+# For CPU variant, standard ctranslate2 is already in requirements.txt
+RUN if [ "${BUILD_VARIANT}" = "gpu" ]; then \
+        # Install CUDA 12.1 compatible CT2 (version 4.4.0 supports CUDA 12)
+        pip install --no-cache-dir ctranslate2==4.4.0; \
+    fi
 
 # Create the appuser 
 RUN useradd -m appuser 
 
-# Give appuser ownership of the /app directory (including whisper_cache)
-RUN chown appuser:appuser /app 
+# Give appuser ownership of the /app directory (including all cache directories)
+RUN chown -R appuser:appuser /app
 
-# Important: Switch to the appuser before downloading the model
+# Important: Switch to the appuser
 USER appuser
-
-RUN python -c "import os; print(os.environ.get('WHISPER_CACHE_DIR')); import whisper; whisper.load_model('base')"
 
 # Install Playwright Chromium browser as appuser
 RUN playwright install chromium
 
-# Copy the rest of the application code
-COPY . .
+# Copy the rest of the application code (as root to ensure proper ownership)
+USER root
+COPY --chown=appuser:appuser . .
+
+# Make warm-up script executable
+RUN chmod +x /app/scripts/warm_up_model.py || true
+
+# Switch back to appuser
+USER appuser
 
 # Expose the port the app runs on
 EXPOSE 8080
@@ -203,7 +237,19 @@ EXPOSE 8080
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
+# Set BUILD_VARIANT as environment variable for runtime detection
+ENV BUILD_VARIANT=${BUILD_VARIANT}
+
+# For CPU-only builds (CI), skip model warmup by default
+ENV SKIP_MODEL_WARMUP=${SKIP_MODEL_WARMUP:-false}
+
 RUN echo '#!/bin/bash\n\
+# Run model warm-up if enabled\n\
+if [ "${ENABLE_FASTER_WHISPER}" = "true" ] && [ "${SKIP_MODEL_WARMUP}" != "true" ]; then\n\
+    echo "Running model warm-up..."\n\
+    python /app/scripts/warm_up_model.py\n\
+fi\n\
+# Start Gunicorn\n\
 gunicorn --bind 0.0.0.0:8080 \
     --workers ${GUNICORN_WORKERS:-2} \
     --timeout ${GUNICORN_TIMEOUT:-300} \
