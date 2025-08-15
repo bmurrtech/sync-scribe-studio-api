@@ -224,15 +224,7 @@ RATE_LIMIT_KEY=ip                    # Rate limit by 'ip' or 'api_key'
 ```
 
 #### ASR (Speech Recognition) Configuration
-```bash
-# CPU-optimized defaults (recommended for most deployments)
-ASR_MODEL_ID=openai/whisper-small    # Model size (tiny/base/small/medium/large-v3)
-ASR_DEVICE=auto                      # Auto-detects optimal device (cpu/cuda/auto)
-ASR_COMPUTE_TYPE=auto                # Auto-selects precision (int8/float16/float32)
-ASR_BEAM_SIZE=5                      # Search width (1-10)
-ASR_BATCH_SIZE=auto                  # Auto-sizing: CPU=4, GPU=16, Auto=8
-ENABLE_MODEL_WARM_UP=true            # Preload models at startup for better UX
-```
+*Note: Defaults are CPU-optimized with auto-detection. Only specify these variables to override defaults or force GPU usage.*
 
 ---
 
@@ -348,97 +340,32 @@ ASR_DEVICE=cpu
 6. **Storage**: Use encrypted storage backends when possible
 7. **Network**: Deploy behind HTTPS and consider API gateways
 
-## ASR (Automatic Speech Recognition) Optimization
+## GPU Acceleration (Optional)
 
-### CPU-First Design Philosophy
+*The API is CPU-optimized by default with auto-detection. Only configure GPU settings if you need maximum performance.*
 
-SyncScribe Studio API is **optimized for CPU deployments by default** to ensure maximum compatibility and cost-effectiveness across cloud platforms like Google Cloud Run, Railway, and Docker containers.
+### Minimal GPU Deployment
 
-#### Key Optimizations Made
-
-**1. Model Upgrade**
-- **Changed**: Default model from `whisper-base` → `whisper-small`
-- **Benefit**: Better accuracy/performance balance (optimal CPU sweet spot)
-- **Impact**: ~15% accuracy improvement with minimal CPU overhead
-
-**2. Device & Compute Auto-Detection**
-- **Changed**: `ASR_DEVICE` default: `cpu` → `auto`
-- **Changed**: `ASR_COMPUTE_TYPE` default: `int8` → `auto`
-- **Benefit**: Automatically selects optimal settings per environment
-  - **CPU**: `device=cpu`, `compute_type=int8` (quantized for speed)
-  - **GPU**: `device=cuda`, `compute_type=float16` (optimal VRAM/speed balance)
-  - **Auto**: Detects available hardware and optimizes accordingly
-
-**3. Smart Batch Sizing**
-- **Added**: Dynamic batch size based on device detection
-  - **CPU**: Batch size `4` (CPU has limited batch benefits)
-  - **GPU**: Batch size `16` (conservative, can scale to 32)
-  - **Auto**: Batch size `8` (safe middle ground)
-
-**4. Comprehensive Model Mappings**
-- **Added**: `whisper-tiny` mapping (was missing)
-- **Added**: Community turbo variants (`large-v3-turbo`)
-- **Added**: Safe fallback to `small` for unknown models with warning
-
-**5. Enhanced User Experience**
-- **Changed**: `ENABLE_MODEL_WARM_UP` default: `false` → `true`
-- **Benefit**: Better first-request latency (trades cold start time for UX)
-- **Added**: `SKIP_MODEL_WARMUP` for CI/CD scenarios
-
-### Default Behavior by Environment
-
-#### Cloud Run (CPU-only)
-```yaml
-ASR_DEVICE: auto          # → Detects as 'cpu'
-ASR_COMPUTE_TYPE: auto    # → Selects 'int8' for speed
-ASR_BATCH_SIZE: auto      # → Uses 4 for CPU optimization
-ASR_MODEL_ID: openai/whisper-small  # → CPU sweet spot
-ENABLE_MODEL_WARM_UP: true  # → Models load at startup
-```
-
-#### GPU Environment
-```yaml
-ASR_DEVICE: auto          # → Detects as 'cuda'
-ASR_COMPUTE_TYPE: auto    # → Selects 'float16' for VRAM efficiency
-ASR_BATCH_SIZE: auto      # → Uses 16 for GPU optimization
-ASR_MODEL_ID: openai/whisper-small  # → Can upgrade to medium/large
-ENABLE_MODEL_WARM_UP: true  # → GPU models warm up faster
-```
-
-#### Fallback Behavior
-- **Faster-Whisper fails** → Auto-switches to OpenAI Whisper
-- **Unknown model** → Falls back to `small` with warning
-- **Warm-up enabled** → Models load at startup (better first request)
-- **CUDA unavailable** → Gracefully falls back to CPU with optimal settings
-
----
-
-### GPU Configuration Guide
-
-For maximum performance with GPU acceleration:
-
-#### 1. Docker GPU Setup
-
-**Build GPU-enabled container:**
+**Step 1: Use GPU Docker image**
 ```bash
-# Build with GPU support
-docker build --build-arg BUILD_VARIANT=gpu -t sync-scribe-gpu:latest .
-
-# Or pull GPU-enabled image
 docker pull bmurrtech/sync-scribe-studio:gpu
 ```
 
-**Run with GPU access:**
+**Step 2: Add minimal GPU variables**
 ```bash
-docker run -d -p 8080:8080 \
-  --gpus all \
+# Required for GPU deployment
+ASR_DEVICE=cuda                    # Force GPU usage
+```
+
+**Step 3: Run with GPU access**
+```bash
+docker run -d -p 8080:8080 --gpus all \
   -e API_KEY=your_secure_api_key \
   -e ASR_DEVICE=cuda \
-  -e ASR_COMPUTE_TYPE=float16 \
-  -e ASR_BATCH_SIZE=32 \
-  -e ASR_MODEL_ID=openai/whisper-medium \
   bmurrtech/sync-scribe-studio:gpu
 ```
+
+*That's it! The API will auto-optimize other settings for GPU usage.*
 
 #### 2. Optimal GPU Settings
 
