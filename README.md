@@ -269,7 +269,7 @@ docker run -d -p 8080:8080 \
   -e GUNICORN_TIMEOUT=300 \
   -e LOCAL_STORAGE_PATH=/tmp \
   
-  bmurrtech/sync-scribe-studio:latest
+  bmurrtech/sync-scribe-studio-api:latest
 ```
 
 ## Cloud Platform Deployment
@@ -314,12 +314,12 @@ curl -X GET https://your-api-url/v1/toolkit/test \
   -H "X-API-Key: your_api_key"
 ```
 
-### 4. Explore with Postman
-- Download the [Postman Collection](https://bit.ly/49Gkh61)
+### 4. Test the API
+- Use any API testing tool (Postman, curl, etc.)
 - Configure environment variables:
   - `base_url`: Your API URL
   - `x-api-key`: Your API key
-- Test example requests
+- Test example endpoints
 
 ## System Requirements
 
@@ -388,4 +388,4 @@ This project is licensed under the [GNU General Public License v2.0 (GPL-2.0)](L
 
 ---
 
-*This project is based on the original No-Code Architects Toolkit by Stephen Pope.*
+*Sync Scribe Studio API - Advanced media processing and transcription toolkit.*

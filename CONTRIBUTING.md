@@ -176,4 +176,4 @@ Thank you for contributing to Sync Scribe Studio API! Together we're building a 
 
 ---
 
-*This project is based on the original No-Code Architects Toolkit by Stephen Pope.*
+*Sync Scribe Studio API - Contributing to the advanced media processing and transcription toolkit.*

@@ -1,12 +1,12 @@
 {
   "test_type": "local",
   "base_url": "http://localhost:8080",
-  "timestamp": "2025-08-10T23:22:15.135558",
+  "timestamp": "2025-08-15T16:32:51.540805",
   "summary": {
     "total": 23,
-    "passed": 20,
-    "failed": 3,
-    "pass_rate": 86.95652173913044
+    "passed": 2,
+    "failed": 21,
+    "pass_rate": 8.695652173913043
   },
   "results": [
     {
@@ -15,146 +15,146 @@
       "status": "PASS",
       "response_code": 200,
       "expected_code": 200,
-      "response_time": 0.001,
+      "response_time": 0.003,
       "is_sync": false,
       "error": null
     },
     {
       "endpoint": "/v1/toolkit/authenticate",
       "name": "Toolkit: Authenticate",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": 200,
-      "response_time": 0.001,
+      "response_time": 0.003,
       "is_sync": false,
-      "error": null
+      "error": "Expected 200, got 401"
     },
     {
       "endpoint": "/v1/toolkit/test",
       "name": "Toolkit: Test",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": 200,
-      "response_time": 0.26,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected 200, got 401"
     },
     {
       "endpoint": "/v1/toolkit/job/status",
       "name": "Toolkit: Job Status",
-      "status": "PASS",
-      "response_code": 404,
-      "expected_code": [
-        200,
-        404
-      ],
-      "response_time": 0.005,
-      "is_sync": false,
-      "error": null
-    },
-    {
-      "endpoint": "/v1/toolkit/jobs/status",
-      "name": "Toolkit: Jobs Status",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         404
       ],
       "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 404], got 401"
+    },
+    {
+      "endpoint": "/v1/toolkit/jobs/status",
+      "name": "Toolkit: Jobs Status",
+      "status": "FAIL",
+      "response_code": 401,
+      "expected_code": [
+        200,
+        404
+      ],
+      "response_time": 0.002,
+      "is_sync": false,
+      "error": "Expected [200, 404], got 401"
     },
     {
       "endpoint": "/v1/audio/concatenate",
       "name": "Audio: Concatenate",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 13.664,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/code/execute/python",
       "name": "Code: Execute Python",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 0.028,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/ffmpeg/compose",
       "name": "FFmpeg: Compose",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 4.323,
+      "response_time": 0.003,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/image/convert/video",
       "name": "Image: Convert to Video",
       "status": "FAIL",
-      "response_code": 500,
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 0.01,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": "Expected [200, 202], got 500"
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/image/screenshot/webpage",
       "name": "Image: Screenshot Webpage",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 0.745,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/media/convert",
       "name": "Media: Convert",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 8.801,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/media/convert/mp3",
       "name": "Media: Convert to MP3",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 8.597,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/media/feedback",
@@ -165,7 +165,7 @@
         200,
         500
       ],
-      "response_time": 0.003,
+      "response_time": 0.002,
       "is_sync": false,
       "error": null
     },
@@ -173,132 +173,132 @@
       "endpoint": "/v1/media/transcribe",
       "name": "Media: Transcribe",
       "status": "FAIL",
-      "response_code": 500,
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 3.846,
+      "response_time": 0.004,
       "is_sync": false,
-      "error": "Expected [200, 202], got 500"
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/media/silence",
       "name": "Media: Silence Detection",
-      "status": "PASS",
-      "response_code": 200,
-      "expected_code": [
-        200,
-        202
-      ],
-      "response_time": 4.269,
-      "is_sync": false,
-      "error": null
-    },
-    {
-      "endpoint": "/v1/media/metadata",
-      "name": "Media: Metadata",
-      "status": "PASS",
-      "response_code": 200,
-      "expected_code": [
-        200,
-        202
-      ],
-      "response_time": 3.736,
-      "is_sync": false,
-      "error": null
-    },
-    {
-      "endpoint": "/v1/s3/upload",
-      "name": "S3: Upload",
-      "status": "PASS",
-      "response_code": 500,
-      "expected_code": [
-        200,
-        202,
-        500
-      ],
-      "response_time": 2.089,
-      "is_sync": false,
-      "error": null
-    },
-    {
-      "endpoint": "/v1/video/caption",
-      "name": "Video: Caption",
       "status": "FAIL",
-      "response_code": 404,
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
       "response_time": 0.002,
       "is_sync": false,
-      "error": "Expected [200, 202], got 404"
+      "error": "Expected [200, 202], got 401"
+    },
+    {
+      "endpoint": "/v1/media/metadata",
+      "name": "Media: Metadata",
+      "status": "FAIL",
+      "response_code": 401,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 0.002,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 401"
+    },
+    {
+      "endpoint": "/v1/s3/upload",
+      "name": "S3: Upload",
+      "status": "FAIL",
+      "response_code": 401,
+      "expected_code": [
+        200,
+        202,
+        500
+      ],
+      "response_time": 0.002,
+      "is_sync": false,
+      "error": "Expected [200, 202, 500], got 401"
+    },
+    {
+      "endpoint": "/v1/video/caption",
+      "name": "Video: Caption",
+      "status": "FAIL",
+      "response_code": 401,
+      "expected_code": [
+        200,
+        202
+      ],
+      "response_time": 0.002,
+      "is_sync": false,
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/video/concatenate",
       "name": "Video: Concatenate",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 12.233,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/video/thumbnail",
       "name": "Video: Thumbnail",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 3.426,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/video/cut",
       "name": "Video: Cut",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 14.898,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/video/split",
       "name": "Video: Split",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 5.342,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     },
     {
       "endpoint": "/v1/video/trim",
       "name": "Video: Trim",
-      "status": "PASS",
-      "response_code": 200,
+      "status": "FAIL",
+      "response_code": 401,
       "expected_code": [
         200,
         202
       ],
-      "response_time": 3.691,
+      "response_time": 0.002,
       "is_sync": false,
-      "error": null
+      "error": "Expected [200, 202], got 401"
     }
   ]
 }

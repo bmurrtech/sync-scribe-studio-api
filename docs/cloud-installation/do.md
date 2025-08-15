@@ -40,7 +40,7 @@ You'll need to create a Space (Digital Ocean's object storage) for the toolkit t
 1. From your Digital Ocean dashboard, click **Create** and select **App**
 2. Choose **Container Image** as the deployment source
 3. Select **Docker Hub** for the repository
-4. Enter `stephengpope/sync-scribe-studio-api` as the image name
+3. Enter `bmurrtech/sync-scribe-studio-api` as the image name
 5. Enter `latest` for the image tag
 6. Click **Next**
 7. If needed, edit the name to remove any extra dashes (Digital Ocean may show an error for long names)
@@ -78,9 +78,9 @@ Add the following environment variables exactly as shown (be careful with unders
 
 ### Using Postman
 
-1. Sign up for or log in to [Postman](https://www.postman.com/)
-2. Import the [Sync Scribe Studio Postman Collection](https://bit.ly/49Gkh61)
-3. Fork the collection to your workspace
+1. Use an API testing tool like Postman or curl
+2. If using Postman, create a new collection or import examples from the repository
+3. Set up your environment variables
 4. Create a new environment:
    - Name it "Digital Ocean" or similar
    - Add a variable `x-api-key` with the value matching your API_KEY (e.g., `test123`)

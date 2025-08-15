@@ -1,0 +1,96 @@
+# Dockerfile for LOCAL DEVELOPMENT ONLY
+# This file uses a pre-built FFmpeg base image for faster builds
+# DO NOT use this for production or distribution - use the main Dockerfile instead
+
+# Build arguments for CPU-only or GPU variant
+ARG BUILD_VARIANT=cpu
+
+# Use pre-built FFmpeg base image for faster builds
+FROM sync-scribe-ffmpeg-base:${BUILD_VARIANT} AS final
+
+# The base image already has FFmpeg and all dependencies installed
+
+# Copy fonts into the custom fonts directory
+COPY ./fonts /usr/share/fonts/custom
+
+# Rebuild the font cache so that fontconfig can see the custom fonts
+RUN fc-cache -f -v
+
+# Set work directory
+WORKDIR /app
+
+# Set environment variables for model caching
+ENV WHISPER_CACHE_DIR="/app/whisper_cache"
+ENV ASR_CACHE_DIR="/app/asr_cache"
+ENV HF_HOME="/app/huggingface_cache"
+
+# Create cache directories
+RUN mkdir -p ${WHISPER_CACHE_DIR} ${ASR_CACHE_DIR} ${HF_HOME}
+
+# Copy the requirements file first to optimize caching
+COPY requirements.txt .
+
+# Install Python dependencies, upgrade pip
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install playwright && \
+    pip install jsonschema
+
+# Install CTranslate2 with appropriate CUDA support for GPU variant
+# For CPU variant, standard ctranslate2 is already in requirements.txt
+RUN if [ "${BUILD_VARIANT}" = "gpu" ]; then \
+        # Install CUDA 12.1 compatible CT2 (version 4.4.0 supports CUDA 12)
+        pip install --no-cache-dir ctranslate2==4.4.0; \
+    fi
+
+# Create the appuser 
+RUN useradd -m appuser 
+
+# Give appuser ownership of the /app directory (including all cache directories)
+RUN chown -R appuser:appuser /app
+
+# Important: Switch to the appuser
+USER appuser
+
+# Install Playwright Chromium browser as appuser
+RUN playwright install chromium
+
+# Copy the rest of the application code (as root to ensure proper ownership)
+USER root
+COPY --chown=appuser:appuser . .
+
+# Make warm-up script executable
+RUN chmod +x /app/scripts/warm_up_model.py || true
+
+# Switch back to appuser
+USER appuser
+
+# Expose the port the app runs on
+EXPOSE 8080
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
+# Set BUILD_VARIANT as environment variable for runtime detection
+ENV BUILD_VARIANT=${BUILD_VARIANT}
+
+# For CPU-only builds (CI), skip model warmup by default
+ENV SKIP_MODEL_WARMUP=${SKIP_MODEL_WARMUP:-false}
+
+RUN echo '#!/bin/bash\n\
+# Run model warm-up if enabled (Faster-Whisper is default now)\n\
+if [ "${ENABLE_OPENAI_WHISPER}" != "true" ] && [ "${SKIP_MODEL_WARMUP}" != "true" ]; then\n\
+    echo "Running Faster-Whisper model warm-up..."\n\
+    python /app/scripts/warm_up_model.py\n\
+fi\n\
+# Start Gunicorn\n\
+gunicorn --bind 0.0.0.0:8080 \
+    --workers ${GUNICORN_WORKERS:-2} \
+    --timeout ${GUNICORN_TIMEOUT:-300} \
+    --worker-class sync \
+    --keep-alive 80 \
+    app:app' > /app/run_gunicorn.sh && \
+    chmod +x /app/run_gunicorn.sh
+
+# Run the shell script
+CMD ["/app/run_gunicorn.sh"]

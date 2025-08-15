@@ -1,6 +1,9 @@
+# FFmpeg Base Image with all dependencies pre-built
+# This image contains FFmpeg and all required libraries pre-compiled
+# to speed up the main application builds
+
 # Build arguments for CPU-only or GPU variant
-# Set to 'gpu' for production builds that support both GPU and CPU
-ARG BUILD_VARIANT=gpu
+ARG BUILD_VARIANT=cpu
 ARG CUDA_VERSION=12.1.0
 ARG CUDNN_VERSION=8
 
@@ -9,20 +12,18 @@ FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-runtime-ubuntu22.04 AS ba
 FROM python:3.9-slim AS base-cpu
 
 # Select the appropriate base image based on BUILD_VARIANT
-FROM base-${BUILD_VARIANT} AS final
+FROM base-${BUILD_VARIANT} AS ffmpeg-base
 
-# Re-declare BUILD_VARIANT to make it available in this stage
-ARG BUILD_VARIANT
-ARG SKIP_MODEL_WARMUP
-
-# Install Python for GPU variant (CUDA image doesn't include it)
+# Install Python 3.9 for GPU variant (CUDA image doesn't include it)
 RUN if [ "${BUILD_VARIANT}" = "gpu" ]; then \
         apt-get update && apt-get install -y --no-install-recommends \
-        python3 \
-        python3-dev \
-        python3-pip && \
-        update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
-        python3 -m pip install --upgrade pip; \
+        python3.9 \
+        python3.9-dev \
+        python3-pip \
+        python3.9-distutils && \
+        update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1 && \
+        update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
+        python -m pip install --upgrade pip; \
     fi
 
 # Install system dependencies, build tools, and libraries
@@ -176,88 +177,14 @@ RUN git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg && \
 # Add /usr/local/bin to PATH (if not already included)
 ENV PATH="/usr/local/bin:${PATH}"
 
-# Copy fonts into the custom fonts directory
-COPY ./fonts /usr/share/fonts/custom
-
-# Rebuild the font cache so that fontconfig can see the custom fonts
-RUN fc-cache -f -v
-
-# Set work directory
-WORKDIR /app
-
-# Set environment variables for model caching
-ENV WHISPER_CACHE_DIR="/app/whisper_cache"
-ENV ASR_CACHE_DIR="/app/asr_cache"
-ENV HF_HOME="/app/huggingface_cache"
-
-# Create cache directories
-RUN mkdir -p ${WHISPER_CACHE_DIR} ${ASR_CACHE_DIR} ${HF_HOME}
-
-# Copy the requirements file first to optimize caching
-COPY requirements.txt .
-
-# Install Python dependencies, upgrade pip
-# For GPU variant, use python3 -m pip since pip may not be in PATH yet
-RUN python3 -m pip install --no-cache-dir --upgrade pip && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
-    python3 -m pip install playwright && \
-    python3 -m pip install jsonschema
-
-# Install CTranslate2 with appropriate CUDA support for GPU variant
-# For CPU variant, standard ctranslate2 is already in requirements.txt
-RUN if [ "${BUILD_VARIANT}" = "gpu" ]; then \
-        # Install CUDA 12.1 compatible CT2 (version 4.4.0 supports CUDA 12)
-        python3 -m pip install --no-cache-dir ctranslate2==4.4.0; \
-    fi
-
-# Create the appuser 
-RUN useradd -m appuser 
-
-# Give appuser ownership of the /app directory (including all cache directories)
-RUN chown -R appuser:appuser /app
-
-# Important: Switch to the appuser
-USER appuser
-
-# Install Playwright Chromium browser as appuser
-RUN playwright install chromium
-
-# Copy the rest of the application code (as root to ensure proper ownership)
-USER root
-COPY --chown=appuser:appuser . .
-
-# Make warm-up script executable
-RUN chmod +x /app/scripts/warm_up_model.py || true
-
-# Switch back to appuser
-USER appuser
-
-# Expose the port the app runs on
-EXPOSE 8080
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
+# Clean up build dependencies to reduce image size (optional)
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Set BUILD_VARIANT as environment variable for runtime detection
+ARG BUILD_VARIANT
 ENV BUILD_VARIANT=${BUILD_VARIANT}
 
-# For CPU-only builds (CI), skip model warmup by default
-ENV SKIP_MODEL_WARMUP=${SKIP_MODEL_WARMUP:-false}
-
-RUN echo '#!/bin/bash\n\
-# Run model warm-up if enabled (Faster-Whisper is default now)\n\
-if [ "${ENABLE_OPENAI_WHISPER}" != "true" ] && [ "${SKIP_MODEL_WARMUP}" != "true" ]; then\n\
-    echo "Running Faster-Whisper model warm-up..."\n\
-    python /app/scripts/warm_up_model.py\n\
-fi\n\
-# Start Gunicorn\n\
-gunicorn --bind 0.0.0.0:8080 \
-    --workers ${GUNICORN_WORKERS:-2} \
-    --timeout ${GUNICORN_TIMEOUT:-300} \
-    --worker-class sync \
-    --keep-alive 80 \
-    app:app' > /app/run_gunicorn.sh && \
-    chmod +x /app/run_gunicorn.sh
-
-# Run the shell script
-CMD ["/app/run_gunicorn.sh"]
+# Label the image
+LABEL maintainer="bmurrtech"
+LABEL description="FFmpeg base image with pre-built libraries for sync-scribe-studio-api"

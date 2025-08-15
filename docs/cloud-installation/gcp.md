@@ -7,12 +7,8 @@ Watch **[Detailed Video Instructions](https://youtu.be/6bC93sek9v8)** to set up 
 - Use the **Docker Image** below:
 
   ```
-  stephengpope/sync-scribe-studio-api:latest
+  bmurrtech/sync-scribe-studio-api:latest
   ```
-
-### Video Resources
-
-- **[Postman Template](https://bit.ly/49Gkh61)**
 
 Or use the guide below walks you through the steps to install the Sync Scribe Studio API on GCP.
 
@@ -84,7 +80,7 @@ Enable the following APIs:
 - Then **Deploy one revision from Docker Hub using the image below**:
 
   ```
-  stephengpope/sync-scribe-studio-api:latest
+  bmurrtech/sync-scribe-studio-api:latest
   ```
 
 ### 3. Allow Unauthenticated Invocations
@@ -128,8 +124,8 @@ By following these steps, the Sync Scribe Studio API will be successfully deploy
 
 ## **Step 6: Test the Deployment**
 
-1. Install **[Postman Template](https://bit.ly/49Gkh61)** on your computer.
-2. Import the API example requests from the Sync Scribe Studio GitHub repository.
+1. Use an API testing tool like Postman or curl.
+2. Import API example requests if available, or use the documentation.
 3. Configure two environment variables in Postman:
    - `base_url`: Your deployed Cloud Run service URL.
    - `x-api-key`: The API key you configured in **Step 5**.

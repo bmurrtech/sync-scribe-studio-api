@@ -246,12 +246,39 @@ def load_model(force_reload: bool = False) -> Optional['WhisperModel']:
         
         # Load the model
         logger.info("-" * 60)
-        logger.info(f"Loading model: {ASR_MODEL_ID}")
+        
+        # Convert model ID format if needed
+        # Faster Whisper expects: "base", "small", "medium", "large", "large-v2", "large-v3"
+        # Or a Hugging Face model ID like "openai/whisper-base" or "Systran/faster-whisper-base"
+        model_name = ASR_MODEL_ID
+        
+        # Map common OpenAI model names to Faster Whisper compatible names
+        model_mapping = {
+            'openai/whisper-base': 'base',
+            'openai/whisper-small': 'small',
+            'openai/whisper-medium': 'medium',
+            'openai/whisper-large': 'large',
+            'openai/whisper-large-v2': 'large-v2',
+            'openai/whisper-large-v3': 'large-v3',
+            'whisper-base': 'base',
+            'whisper-small': 'small',
+            'whisper-medium': 'medium',
+            'whisper-large': 'large',
+            'whisper-large-v2': 'large-v2',
+            'whisper-large-v3': 'large-v3',
+        }
+        
+        # Apply mapping if needed
+        if model_name in model_mapping:
+            logger.info(f"Mapping model ID '{model_name}' to Faster Whisper format '{model_mapping[model_name]}'")
+            model_name = model_mapping[model_name]
+        
+        logger.info(f"Loading model: {model_name} (original: {ASR_MODEL_ID})")
         load_start_time = time.time()
         
         try:
             _model = WhisperModel(
-                ASR_MODEL_ID,
+                model_name,
                 device=device,
                 compute_type=compute_type,
                 download_root=str(cache_dir),
@@ -260,7 +287,7 @@ def load_model(force_reload: bool = False) -> Optional['WhisperModel']:
             )
             
             load_time = time.time() - load_start_time
-            logger.info(f"Loaded Faster-Whisper model: {ASR_MODEL_ID} in {load_time:.3f} seconds")
+            logger.info(f"Loaded Faster-Whisper model: {model_name} (configured as {ASR_MODEL_ID}) in {load_time:.3f} seconds")
             
             # Perform warm-up
             logger.info("-" * 60)

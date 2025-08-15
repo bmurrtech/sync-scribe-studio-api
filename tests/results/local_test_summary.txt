@@ -1,13 +1,13 @@
-LOCAL TEST RESULTS - 2025-08-10 17:43:01
+LOCAL TEST RESULTS - 2025-08-15 16:32:51
 ============================================================
 
 PASS: Health Check (/health)
-PASS: Toolkit: Authenticate (/v1/toolkit/authenticate)
+FAIL: Toolkit: Authenticate (/v1/toolkit/authenticate)
 FAIL: Toolkit: Test (/v1/toolkit/test)
-PASS: Toolkit: Job Status (/v1/toolkit/job/status)
-PASS: Toolkit: Jobs Status (/v1/toolkit/jobs/status)
+FAIL: Toolkit: Job Status (/v1/toolkit/job/status)
+FAIL: Toolkit: Jobs Status (/v1/toolkit/jobs/status)
 FAIL: Audio: Concatenate (/v1/audio/concatenate)
-PASS: Code: Execute Python (/v1/code/execute/python)
+FAIL: Code: Execute Python (/v1/code/execute/python)
 FAIL: FFmpeg: Compose (/v1/ffmpeg/compose)
 FAIL: Image: Convert to Video (/v1/image/convert/video)
 FAIL: Image: Screenshot Webpage (/v1/image/screenshot/webpage)
@@ -15,9 +15,9 @@ FAIL: Media: Convert (/v1/media/convert)
 FAIL: Media: Convert to MP3 (/v1/media/convert/mp3)
 PASS: Media: Feedback (/v1/media/feedback)
 FAIL: Media: Transcribe (/v1/media/transcribe)
-PASS: Media: Silence Detection (/v1/media/silence)
-PASS: Media: Metadata (/v1/media/metadata)
-PASS: S3: Upload (/v1/s3/upload)
+FAIL: Media: Silence Detection (/v1/media/silence)
+FAIL: Media: Metadata (/v1/media/metadata)
+FAIL: S3: Upload (/v1/s3/upload)
 FAIL: Video: Caption (/v1/video/caption)
 FAIL: Video: Concatenate (/v1/video/concatenate)
 FAIL: Video: Thumbnail (/v1/video/thumbnail)
@@ -26,4 +26,4 @@ FAIL: Video: Split (/v1/video/split)
 FAIL: Video: Trim (/v1/video/trim)
 
 ============================================================
-Pass Rate: 39.1% (9/23)
+Pass Rate: 8.7% (2/23)
