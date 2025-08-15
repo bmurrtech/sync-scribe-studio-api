@@ -4,6 +4,7 @@ requests
 ffmpeg-python
 faster-whisper==1.*
 ctranslate2==4.4.0
+openai-whisper
 huggingface_hub[hf-transfer]
 gunicorn
 APScheduler

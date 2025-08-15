@@ -32,13 +32,15 @@ from config import (
     ENABLE_OPENAI_WHISPER
 )
 
-# Try to import faster-whisper
+# Try to import faster-whisper with workarounds for library issues
 try:
-    from faster_whisper import WhisperModel
-    FASTER_WHISPER_AVAILABLE = True
-except ImportError:
+    from .faster_whisper_loader import FASTER_WHISPER_AVAILABLE, WhisperModel, IMPORT_ERROR
+    if not FASTER_WHISPER_AVAILABLE:
+        logger.warning(f"faster-whisper not available: {IMPORT_ERROR}")
+except ImportError as e:
     FASTER_WHISPER_AVAILABLE = False
-    logger.warning("faster-whisper not installed. ASR features will be limited.")
+    WhisperModel = None
+    logger.warning(f"Failed to load faster_whisper_loader: {e}")
 
 # Try to import torch for CUDA detection
 try:

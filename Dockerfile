@@ -203,6 +203,12 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
     python3 -m pip install playwright && \
     python3 -m pip install jsonschema
 
+# Install OpenMP library (required for ctranslate2)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgomp1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install CTranslate2 with appropriate CUDA support for GPU variant
 # For CPU variant, standard ctranslate2 is already in requirements.txt
 RUN if [ "${BUILD_VARIANT}" = "gpu" ]; then \
@@ -245,10 +251,12 @@ ENV BUILD_VARIANT=${BUILD_VARIANT}
 ENV SKIP_MODEL_WARMUP=${SKIP_MODEL_WARMUP:-false}
 
 RUN echo '#!/bin/bash\n\
-# Run model warm-up if enabled (Faster-Whisper is default now)\n\
+# Check if faster-whisper can be imported, fallback to OpenAI Whisper if needed\n\
+python /app/init_faster_whisper.py\n\
+# Run model warm-up if enabled\n\
 if [ "${ENABLE_OPENAI_WHISPER}" != "true" ] && [ "${SKIP_MODEL_WARMUP}" != "true" ]; then\n\
-    echo "Running Faster-Whisper model warm-up..."\n\
-    python /app/scripts/warm_up_model.py\n\
+    echo "Running model warm-up..."\n\
+    python /app/scripts/warm_up_model.py || echo "Model warm-up failed (non-critical)"\n\
 fi\n\
 # Start Gunicorn\n\
 gunicorn --bind 0.0.0.0:8080 \
