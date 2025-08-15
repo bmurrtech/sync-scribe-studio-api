@@ -168,80 +168,200 @@ docker pull bmurrtech/sync-scribe-studio:latest
 docker build -t bmurrtech/sync-scribe-studio:latest .
 ```
 
-### General Environment Variables
+## Configuration Guide
+
+SyncScribe Studio API uses environment variables for configuration. This section provides a comprehensive guide organized by complexity level.
+
+### Required Configuration
+
+These variables are mandatory for basic operation:
 
 #### `API_KEY`
-- **Purpose**: Used for API authentication.
-- **Requirement**: Mandatory.
+- **Purpose**: Primary authentication for API access
+- **Format**: String (recommended: 32+ characters)
+- **Example**: `your_secure_api_key_here`
+- **Security**: Store securely, never commit to version control
+
+#### Storage Provider (Choose One)
+
+**Option 1: S3-Compatible Storage**
+```bash
+S3_ENDPOINT_URL=https://s3.amazonaws.com          # S3 endpoint URL
+S3_ACCESS_KEY=your_access_key                     # Access key ID
+S3_SECRET_KEY=your_secret_key                     # Secret access key
+S3_BUCKET_NAME=your_bucket                        # Target bucket name
+S3_REGION=us-east-1                              # AWS region
+```
+
+**Option 2: Google Cloud Storage**
+```bash
+GCP_SA_CREDENTIALS='{"type":"service_account"...}'  # Service account JSON
+GCP_BUCKET_NAME=your_gcs_bucket                    # GCS bucket name
+GCP_PROJECT_ID=your_project_id                     # GCP project ID
+GCP_STORAGE_BUCKET=your_bucket_name                # Storage bucket
+GCP_SA_EMAIL=service@project.iam.gserviceaccount.com
+```
 
 ---
 
-### S3-Compatible Storage Environment Variables
+### Recommended Configuration
 
-#### `S3_ENDPOINT_URL`
-- **Purpose**: Endpoint URL for the S3-compatible service.
-- **Requirement**: Mandatory if using S3-compatible storage.
+These settings improve performance and provide basic security:
 
-#### `S3_ACCESS_KEY`
-- **Purpose**: The access key for the S3-compatible storage service.
-- **Requirement**: Mandatory if using S3-compatible storage.
+#### Performance Tuning
+```bash
+GUNICORN_WORKERS=4                    # Worker processes (2-4× CPU cores)
+GUNICORN_TIMEOUT=300                  # Request timeout (seconds)
+MAX_QUEUE_LENGTH=20                   # Concurrent task limit
+LOCAL_STORAGE_PATH=/tmp               # Temporary file directory
+```
 
-#### `S3_SECRET_KEY`
-- **Purpose**: The secret key for the S3-compatible storage service.
-- **Requirement**: Mandatory if using S3-compatible storage.
+#### Basic Rate Limiting
+```bash
+RATE_LIMIT_PER_MINUTE=100            # Requests per minute per IP
+RATE_LIMIT_BURST=100                 # Burst capacity
+RATE_LIMIT_KEY=ip                    # Rate limit by 'ip' or 'api_key'
+```
 
-#### `S3_BUCKET_NAME`
-- **Purpose**: The bucket name for the S3-compatible storage service.
-- **Requirement**: Mandatory if using S3-compatible storage.
-
-#### `S3_REGION`
-- **Purpose**: The region for the S3-compatible storage service.
-- **Requirement**: Mandatory if using S3-compatible storage, "None" is acceptible for some s3 providers.
-
----
-
-### Google Cloud Storage (GCP) Environment Variables
-
-#### `GCP_SA_CREDENTIALS`
-- **Purpose**: The JSON credentials for the GCP Service Account.
-- **Requirement**: Mandatory if using GCP storage.
-
-#### `GCP_BUCKET_NAME`
-- **Purpose**: The name of the GCP storage bucket.
-- **Requirement**: Mandatory if using GCP storage.
+#### ASR (Speech Recognition) Configuration
+```bash
+ASR_MODEL_ID=openai/whisper-base     # Model size (tiny/base/small/medium/large-v3)
+ASR_DEVICE=cpu                       # Processing device (cpu/cuda/auto)
+ASR_COMPUTE_TYPE=int8                # Precision (int8/float16/float32)
+ASR_BEAM_SIZE=5                      # Search width (1-10)
+ASR_BATCH_SIZE=16                    # Batch processing size
+```
 
 ---
 
-### Performance Tuning Variables
+### Advanced Configuration
 
-#### `MAX_QUEUE_LENGTH`
-- **Purpose**: Limits the maximum number of concurrent tasks in the queue.
-- **Default**: 0 (unlimited)
-- **Recommendation**: Set to a value based on your server resources, e.g., 10-20 for smaller instances.
+These settings provide enhanced security, optimization, and feature control:
 
-#### `GUNICORN_WORKERS`
-- **Purpose**: Number of worker processes for handling requests.
-- **Default**: Number of CPU cores + 1
-- **Recommendation**: 2-4× number of CPU cores for CPU-bound workloads.
+#### Security Headers & CORS
+```bash
+ENABLE_SECURITY_HEADERS=true         # Enable security headers
+ALLOWED_ORIGINS=https://app.example.com,https://dashboard.example.com
+```
 
-#### `GUNICORN_TIMEOUT`
-- **Purpose**: Timeout (in seconds) for worker processes.
-- **Default**: 30
-- **Recommendation**: Increase for processing large media files (e.g., 300-600).
+#### Feature Flags
+```bash
+ENABLE_OPENAI_WHISPER=false         # Use legacy OpenAI Whisper (default: Faster-Whisper)
+SKIP_MODEL_WARMUP=false             # Skip model preloading (useful for CI/CD)
+APP_DEBUG=false                     # Debug mode (never enable in production)
+```
+
+#### ASR Advanced Settings
+```bash
+ASR_CACHE_DIR=/app/asr_cache        # Model cache directory
+WHISPER_CACHE_DIR=/app/whisper_cache # Whisper model cache
+HF_HOME=/app/huggingface_cache      # Hugging Face cache
+```
+
+#### Application Settings
+```bash
+APP_NAME=SyncScribeStudio           # Application name
+APP_DOMAIN=api.example.com          # Domain (without protocol)
+APP_URL=https://api.example.com     # Full application URL
+CLOUD_BASE_URL=https://your-api.run.app  # Deployed API URL
+LOCAL_BASE_URL=http://localhost:8080     # Local development URL
+```
+
+#### Docker Build Configuration (Build-time only)
+```bash
+BUILD_VARIANT=gpu                   # Build type: 'gpu' or 'cpu'
+CUDA_VERSION=12.1.0                 # CUDA version for GPU builds
+CUDNN_VERSION=8                     # cuDNN version for GPU builds
+```
 
 ---
 
-### Storage Configuration
+### Configuration Templates
 
-#### `LOCAL_STORAGE_PATH`
-- **Purpose**: Directory for temporary file storage during processing.
-- **Default**: /tmp
-- **Recommendation**: Set to a path with sufficient disk space for your expected workloads.
+#### Minimal Production Setup
+```bash
+# Essential configuration for basic deployment
+API_KEY=your_secure_api_key_here
+S3_ENDPOINT_URL=https://s3.amazonaws.com
+S3_ACCESS_KEY=your_access_key
+S3_SECRET_KEY=your_secret_key
+S3_BUCKET_NAME=your_bucket
+S3_REGION=us-east-1
+GUNICORN_WORKERS=2
+GUNICORN_TIMEOUT=300
+```
 
-### Notes
-- Ensure all required environment variables are set based on the storage provider in use (GCP or S3-compatible). 
-- Missing any required variables will result in errors during runtime.
-- Performance variables can be tuned based on your workload and available resources.
+#### High-Performance Production
+```bash
+# Optimized for high-volume processing
+API_KEY=your_secure_api_key_here
+S3_ENDPOINT_URL=https://s3.amazonaws.com
+S3_ACCESS_KEY=your_access_key
+S3_SECRET_KEY=your_secret_key
+S3_BUCKET_NAME=your_bucket
+S3_REGION=us-east-1
+
+# Performance optimization
+GUNICORN_WORKERS=8
+GUNICORN_TIMEOUT=600
+MAX_QUEUE_LENGTH=50
+
+# Rate limiting
+RATE_LIMIT_PER_MINUTE=200
+RATE_LIMIT_BURST=300
+RATE_LIMIT_KEY=api_key
+
+# ASR optimization
+ASR_MODEL_ID=openai/whisper-small
+ASR_DEVICE=cuda
+ASR_COMPUTE_TYPE=float16
+ASR_BATCH_SIZE=32
+
+# Security
+ENABLE_SECURITY_HEADERS=true
+ALLOWED_ORIGINS=https://yourdomain.com
+```
+
+#### Development Setup
+```bash
+# Local development with debugging
+API_KEY=dev_api_key_12345
+LOCAL_BASE_URL=http://localhost:8080
+APP_DEBUG=true
+SKIP_MODEL_WARMUP=true
+GUNICORN_WORKERS=2
+GUNICORN_TIMEOUT=120
+LOCAL_STORAGE_PATH=/tmp
+ASR_MODEL_ID=openai/whisper-tiny
+ASR_DEVICE=cpu
+```
+
+### Security Best Practices
+
+1. **API Keys**: Use strong, unique keys (32+ characters)
+2. **Environment Variables**: Never commit secrets to version control
+3. **Rate Limiting**: Enable appropriate limits for your use case
+4. **CORS**: Restrict origins to authorized domains only
+5. **Debug Mode**: Always disable in production
+6. **Storage**: Use encrypted storage backends when possible
+7. **Network**: Deploy behind HTTPS and consider API gateways
+
+### Performance Guidelines
+
+| Use Case | Workers | Timeout | Queue | ASR Model | Compute Type |
+|----------|---------|---------|-------|-----------|-------------|
+| Light (< 10 req/min) | 2 | 120s | 10 | whisper-tiny | int8 |
+| Medium (< 100 req/min) | 4 | 300s | 20 | whisper-base | int8 |
+| Heavy (< 500 req/min) | 8 | 600s | 50 | whisper-small | float16 |
+| Enterprise | 16+ | 900s | 100+ | whisper-medium | float16 |
+
+### Troubleshooting
+
+**Common Issues:**
+- **"Model loading failed"**: Check ASR_CACHE_DIR permissions and disk space
+- **"Rate limit exceeded"**: Adjust RATE_LIMIT_PER_MINUTE or RATE_LIMIT_BURST
+- **"Storage access denied"**: Verify S3/GCP credentials and bucket permissions
+- **"Worker timeout"**: Increase GUNICORN_TIMEOUT for large file processing
 
 ### Run the Container
 
