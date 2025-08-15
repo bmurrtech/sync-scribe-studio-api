@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Stephen G. Pope
+# Copyright (c) 2025
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ from datetime import timedelta
 from services.file_management import download_file
 import logging
 import uuid
-from config import ENABLE_FASTER_WHISPER
+from config import ENABLE_OPENAI_WHISPER
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -96,16 +96,28 @@ def process_transcription(media_url, output_type, max_chars=56, language=None,):
     logger.info(f"Downloaded media to local file: {input_filename}")
 
     try:
-        # Always use faster-whisper model (OpenAI whisper deprecated)
-        logger.info("Using faster-whisper model")
+        # Faster-Whisper is now the default ASR backend
         from services.asr import get_model
         from config import ASR_MODEL_ID
-        model = get_model()
-        if not model:
-            raise RuntimeError("Faster-whisper model not available. Please check ASR configuration and ensure ENABLE_FASTER_WHISPER=true")
         
-        use_faster_whisper = True
-        logger.info(f"Loaded faster-whisper model: {ASR_MODEL_ID}")
+        # Check if we should use legacy OpenAI Whisper
+        if ENABLE_OPENAI_WHISPER:
+            logger.info("Using legacy OpenAI Whisper model (ENABLE_OPENAI_WHISPER=true)")
+            try:
+                import whisper
+                model = whisper.load_model(ASR_MODEL_ID.replace('openai/whisper-', ''))
+                use_faster_whisper = False
+                logger.info(f"Loaded OpenAI Whisper model: {ASR_MODEL_ID}")
+            except ImportError:
+                raise RuntimeError("OpenAI Whisper not installed but ENABLE_OPENAI_WHISPER=true")
+        else:
+            # Default: Use Faster-Whisper
+            logger.info("Using Faster-Whisper model (default)")
+            model = get_model()
+            if not model:
+                raise RuntimeError("Faster-Whisper model not available. Please install faster-whisper package.")
+            use_faster_whisper = True
+            logger.info(f"Loaded Faster-Whisper model: {ASR_MODEL_ID}")
 
         # Transcribe based on output type
         if output_type == 'transcript':

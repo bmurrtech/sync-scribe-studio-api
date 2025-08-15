@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Stephen G. Pope
+# Copyright (c) 2025
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,7 +33,9 @@ GCP_BUCKET_NAME = os.environ.get('GCP_BUCKET_NAME', '')
 
 # Feature Flags
 # ASR (Automatic Speech Recognition) Configuration
-ENABLE_FASTER_WHISPER = os.environ.get('ENABLE_FASTER_WHISPER', 'true').lower() == 'true'
+# Faster-Whisper is now the default ASR backend for better performance
+# To use legacy OpenAI Whisper, explicitly set ENABLE_OPENAI_WHISPER=true
+ENABLE_OPENAI_WHISPER = os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower() == 'true'
 
 # Faster-Whisper ASR Settings
 ASR_MODEL_ID = os.environ.get('ASR_MODEL_ID', 'openai/whisper-base')

@@ -29,7 +29,7 @@ from config import (
     ASR_BEAM_SIZE,
     ASR_CACHE_DIR,
     LOCAL_STORAGE_PATH,
-    ENABLE_FASTER_WHISPER
+    ENABLE_OPENAI_WHISPER
 )
 
 # Try to import faster-whisper
@@ -200,8 +200,9 @@ def load_model(force_reload: bool = False) -> Optional['WhisperModel']:
         logger.error("faster-whisper is not installed")
         return None
     
-    if not ENABLE_FASTER_WHISPER:
-        logger.warning("Faster Whisper is disabled via configuration")
+    # Faster-Whisper is now the default, only skip if explicitly using OpenAI Whisper
+    if ENABLE_OPENAI_WHISPER:
+        logger.warning("Using legacy OpenAI Whisper backend (ENABLE_OPENAI_WHISPER=true)")
         return None
     
     # Check if model is already loaded and not forcing reload
@@ -259,7 +260,7 @@ def load_model(force_reload: bool = False) -> Optional['WhisperModel']:
             )
             
             load_time = time.time() - load_start_time
-            logger.info(f"Model loaded successfully in {load_time:.3f} seconds")
+            logger.info(f"Loaded Faster-Whisper model: {ASR_MODEL_ID} in {load_time:.3f} seconds")
             
             # Perform warm-up
             logger.info("-" * 60)
@@ -335,15 +336,15 @@ def unload_model() -> None:
                     pass
 
 
-# Pre-load model on module import if enabled
+# Pre-load model on module import unless explicitly using OpenAI Whisper
 # This ensures the model is ready when the worker starts
-if ENABLE_FASTER_WHISPER and FASTER_WHISPER_AVAILABLE:
-    logger.info("Pre-loading ASR model on module import...")
+if not ENABLE_OPENAI_WHISPER and FASTER_WHISPER_AVAILABLE:
+    logger.info("Pre-loading Faster-Whisper ASR model on module import...")
     _initial_model = load_model()
     if _initial_model:
-        logger.info("ASR model pre-loaded successfully")
+        logger.info("Faster-Whisper ASR model pre-loaded successfully")
     else:
-        logger.warning("Failed to pre-load ASR model")
+        logger.warning("Failed to pre-load Faster-Whisper ASR model")
 
 
 # For testing purposes
