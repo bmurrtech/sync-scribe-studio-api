@@ -1,37 +1,43 @@
-name: Update Build Number
+name: Build Number (Manual)
+
 on:
-  push:
-    branches:
-      - build
+  workflow_dispatch:
+    inputs:
+      increment:
+        description: 'Increment build number'
+        required: false
+        default: true
+        type: boolean
+
 permissions:
   contents: write
+
 jobs:
   update-build-number:
     runs-on: ubuntu-latest
+    if: github.event.inputs.increment == 'true'
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.ACTION_BYPASS }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Update build number
         run: |
           if [ ! -f build_number.txt ]; then
-            echo "0" > build_number.txt
+            echo "1" > build_number.txt
+          else
+            build_number=$(( $(cat build_number.txt) + 1 ))
+            echo $build_number > build_number.txt
           fi
-          build_number=$(( $(cat build_number.txt) + 1 ))
-          echo $build_number > build_number.txt
           
-          # Update the version in your code file (e.g., version.py)
-          echo "BUILD_NUMBER = $build_number" > version.py
-          
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add build_number.txt version.py
-          git commit -m "Build $build_number: Bump build number [skip ci]"
-          git push origin build
-
-      - name: Push changes to testing branch
+          echo "Build number updated to: $(cat build_number.txt)"
+      
+      - name: Commit changes
         run: |
-          git push origin build:testing --force
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add build_number.txt
+          git commit -m "Bump build number to $(cat build_number.txt) [skip ci]" || echo "No changes to commit"
+          git push || echo "Nothing to push"
