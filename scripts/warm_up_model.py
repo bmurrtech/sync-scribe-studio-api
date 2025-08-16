@@ -24,11 +24,11 @@ def main():
     logger.info("Starting ASR Model Warm-up")
     logger.info("=" * 60)
     
-    # Check if faster-whisper is enabled
-    enable_faster_whisper = os.environ.get('ENABLE_FASTER_WHISPER', 'false').lower() == 'true'
+    # Check if OpenAI Whisper is enabled (if so, skip Faster-Whisper warm-up)
+    enable_openai_whisper = os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower() == 'true'
     
-    if not enable_faster_whisper:
-        logger.info("ENABLE_FASTER_WHISPER is not set to 'true', skipping warm-up")
+    if enable_openai_whisper:
+        logger.info("ENABLE_OPENAI_WHISPER is set to 'true', using legacy OpenAI Whisper - skipping Faster-Whisper warm-up")
         return 0
     
     # Check if warm-up should be skipped (useful for CPU-only builds in CI)
