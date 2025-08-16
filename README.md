@@ -31,10 +31,10 @@ docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR
 |---------|-------|----------|---------------------|---------------------|---------------|
 | **Speed** | whisper-small | Real-time, high-volume | Sub-2 seconds | 2GB RAM | `ASR_PROFILE=speed` |
 | **Balanced** | whisper-small | General purpose (DEFAULT) | 2-3 seconds | 4GB RAM | None required |
-| **Accuracy** | whisper-large-v3-turbo | Professional quality | 4-5 seconds | 6-8GB VRAM + GPU | `ASR_PROFILE=accuracy` + GPU |
+| **Accuracy** | whisper-large-v3 | Maximum fidelity | 5-6 seconds | 10-12GB VRAM + GPU | `ASR_PROFILE=accuracy` + GPU |
 | **Accuracy-Turbo** | whisper-large-v3-turbo | Production speed + quality | 3-4 seconds | 6-8GB VRAM + GPU | `ASR_PROFILE=accuracy-turbo` + GPU |
 
-> **💾 Hardware Requirements**: Speed/Balanced profiles work on modest CPU hardware. Accuracy profiles require NVIDIA GPU with 6-8GB VRAM. For detailed system specs, GPU compatibility, and performance benchmarks, see [ASR Performance Profiles](docs/ASR_PERFORMANCE_PROFILES.md).
+> **💾 Hardware Requirements**: Speed/Balanced profiles work on modest CPU hardware. Accuracy profile requires NVIDIA GPU with 10-12GB VRAM, Accuracy-Turbo requires 6-8GB VRAM. For detailed system specs, GPU compatibility, and performance benchmarks, see [ASR Performance Profiles](docs/ASR_PERFORMANCE_PROFILES.md).
 
 **Speed Profile (Maximum Throughput):**
 ```bash
@@ -55,7 +55,7 @@ docker run -d -p 8080:8080 \
 
 **Accuracy Profile (Maximum Quality):**
 ```bash
-# Best quality - large-v3-turbo with extensive search
+# Maximum fidelity - whisper-large-v3 with extensive search
 docker run -d -p 8080:8080 --gpus all \
   -e API_KEY=your_secure_api_key_here \
   -e ASR_DEVICE=auto \
