@@ -1,10 +1,11 @@
 # Build arguments for CPU-only or GPU variant
 # Set to 'gpu' for production builds that support both GPU and CPU
 ARG BUILD_VARIANT=gpu
-ARG CUDA_VERSION=12.2.2
-ARG CUDNN_VERSION=8
+ARG CUDA_VERSION=12.6
+ARG CUDNN_VERSION=9
 
 # Base image - use NVIDIA CUDA runtime for GPU variant, or python:3.9-slim for CPU
+# Updated to cuDNN 9 to match CTranslate2 4.6.0 requirements
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-runtime-ubuntu22.04 AS base-gpu
 FROM python:3.9-slim AS base-cpu
 
