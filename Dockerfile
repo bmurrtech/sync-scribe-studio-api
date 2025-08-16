@@ -192,8 +192,9 @@ ENV WHISPER_CACHE_DIR="/app/whisper_cache"
 ENV ASR_CACHE_DIR="/app/asr_cache"
 ENV HF_HOME="/app/huggingface_cache"
 
-# Create cache directories
-RUN mkdir -p ${WHISPER_CACHE_DIR} ${ASR_CACHE_DIR} ${HF_HOME}
+# Create cache directories and clear any existing cache to prevent model.bin errors
+RUN mkdir -p ${WHISPER_CACHE_DIR} ${ASR_CACHE_DIR} ${HF_HOME} && \
+    rm -rf ${ASR_CACHE_DIR}/* ${WHISPER_CACHE_DIR}/* ${HF_HOME}/* 2>/dev/null || true
 
 # Copy the requirements file first to optimize caching
 COPY requirements.txt .
