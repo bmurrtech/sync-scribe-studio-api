@@ -28,9 +28,19 @@ def warm_up_asr_model() -> Dict[str, Any]:
     """
     global _initialization_status
     
-    # Check if ASR warm-up is enabled
-    enable_warm_up = os.environ.get('ENABLE_MODEL_WARM_UP', 'false').lower() == 'true'
-    enable_faster_whisper = os.environ.get('ENABLE_FASTER_WHISPER', 'false').lower() == 'true'
+    # Check if ASR warm-up is enabled (enabled by default for better UX)
+    enable_warm_up = os.environ.get('ENABLE_MODEL_WARM_UP', 'true').lower() == 'true'
+    skip_warm_up = os.environ.get('SKIP_MODEL_WARMUP', 'false').lower() == 'true'
+    enable_openai_whisper = os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower() == 'true'
+    
+    # Skip warmup if explicitly requested (useful for CI/CD)
+    if skip_warm_up:
+        logger.info("Model warm-up is skipped (SKIP_MODEL_WARMUP=true)")
+        return {
+            'status': 'skipped',
+            'reason': 'warmup_skipped',
+            'message': 'Model warm-up is skipped'
+        }
     
     if not enable_warm_up:
         logger.info("Model warm-up is disabled (ENABLE_MODEL_WARM_UP=false)")
@@ -40,12 +50,13 @@ def warm_up_asr_model() -> Dict[str, Any]:
             'message': 'Model warm-up is disabled'
         }
     
-    if not enable_faster_whisper:
-        logger.info("ASR model is disabled (ENABLE_FASTER_WHISPER=false)")
+    # For faster-whisper, it's enabled by default unless explicitly using OpenAI Whisper
+    if enable_openai_whisper:
+        logger.info("Using OpenAI Whisper backend, skipping faster-whisper warm-up")
         return {
             'status': 'skipped',
-            'reason': 'asr_disabled',
-            'message': 'ASR model is disabled'
+            'reason': 'openai_whisper_enabled',
+            'message': 'Using OpenAI Whisper backend'
         }
     
     logger.info("=" * 60)
@@ -138,15 +149,16 @@ def is_ready() -> bool:
     Returns:
         bool: True if ready, False otherwise
     """
-    # Check if warm-up is enabled
-    enable_warm_up = os.environ.get('ENABLE_MODEL_WARM_UP', 'false').lower() == 'true'
-    enable_faster_whisper = os.environ.get('ENABLE_FASTER_WHISPER', 'false').lower() == 'true'
+    # Check if warm-up is enabled (enabled by default for better UX)
+    enable_warm_up = os.environ.get('ENABLE_MODEL_WARM_UP', 'true').lower() == 'true'
+    skip_warm_up = os.environ.get('SKIP_MODEL_WARMUP', 'false').lower() == 'true'
+    enable_openai_whisper = os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower() == 'true'
     
-    # If warm-up is disabled or ASR is disabled, always ready
-    if not enable_warm_up or not enable_faster_whisper:
+    # If warm-up is skipped/disabled or using OpenAI Whisper, always ready
+    if not enable_warm_up or skip_warm_up or enable_openai_whisper:
         return True
     
-    # If warm-up is enabled, check if model is loaded
+    # If warm-up is enabled for faster-whisper, check if model is loaded
     return _initialization_status['model_loaded']
 
 

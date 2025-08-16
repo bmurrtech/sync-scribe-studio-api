@@ -1,16 +1,11 @@
-# Installing on the Google Cloud Platform (GCP)
+# Google Cloud Platform (GCP) Deployment
 
-## 🎥 Video Instructions
+Comprehensive guide for deploying Sync Scribe Studio API on Google Cloud Run with Cloud Storage integration.
 
-Watch **[Detailed Video Instructions](https://youtu.be/6bC93sek9v8)** to set up the Sync Scribe Studio API.
-
-- Use the **Docker Image** below:
-
-  ```
-  bmurrtech/sync-scribe-studio-api:latest
-  ```
-
-Or use the guide below walks you through the steps to install the Sync Scribe Studio API on GCP.
+**Docker Image:**
+```
+bmurrtech/sync-scribe-studio:latest
+```
 
 ---
 
@@ -80,7 +75,7 @@ Enable the following APIs:
 - Then **Deploy one revision from Docker Hub using the image below**:
 
   ```
-  bmurrtech/sync-scribe-studio-api:latest
+  bmurrtech/sync-scribe-studio:latest
   ```
 
 ### 3. Allow Unauthenticated Invocations

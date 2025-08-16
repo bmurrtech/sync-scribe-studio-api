@@ -91,6 +91,7 @@ def detect_cuda_availability() -> tuple[bool, str, int]:
 def determine_device_and_compute_type() -> tuple[str, str]:
     """
     Determine the optimal device and compute type based on system capabilities.
+    Implements best practices for CPU vs GPU performance optimization.
     
     Returns:
         tuple: (device, compute_type)
@@ -110,7 +111,7 @@ def determine_device_and_compute_type() -> tuple[str, str]:
             device = "cpu"
             logger.info("Auto-detected CPU as compute device")
     
-    # Determine compute type based on device
+    # Determine compute type based on device and best practices
     if ASR_COMPUTE_TYPE and ASR_COMPUTE_TYPE != 'auto':
         compute_type = ASR_COMPUTE_TYPE
         logger.info(f"Using user-specified compute type: {compute_type}")
@@ -118,18 +119,19 @@ def determine_device_and_compute_type() -> tuple[str, str]:
         if device == "cuda":
             # Use float16 for GPU (optimal performance/memory trade-off)
             compute_type = "float16"
-            logger.info("Auto-selected float16 compute type for GPU")
+            logger.info("Auto-selected float16 compute type for GPU (optimal for CUDA)")
         else:
-            # Use int8 for CPU (best performance on CPU)
+            # Use int8 for CPU (best performance on CPU via quantization)
             compute_type = "int8"
-            logger.info("Auto-selected int8 compute type for CPU")
+            logger.info("Auto-selected int8 compute type for CPU (quantized for better speed)")
     
-    # Validate compute type compatibility
-    if device == "cuda" and compute_type == "int8":
-        logger.warning("int8 is not optimal for CUDA, switching to float16")
-        compute_type = "float16"
+    # Validate and optimize compute type compatibility
+    if device == "cuda" and compute_type in ["int8", "int8_float32"]:
+        logger.warning("int8 quantization on GPU - using for VRAM efficiency, but float16 typically faster")
     elif device == "cpu" and compute_type == "float16":
-        logger.warning("float16 may be slower on CPU, consider using int8 or float32")
+        logger.warning("float16 on CPU may be slower than int8 quantization, consider int8 for better throughput")
+    elif device == "cpu" and compute_type == "int8":
+        logger.info("Using int8 quantization on CPU - optimal for throughput/accuracy balance")
     
     return device, compute_type
 
@@ -254,26 +256,39 @@ def load_model(force_reload: bool = False) -> Optional['WhisperModel']:
         # Or a Hugging Face model ID like "openai/whisper-base" or "Systran/faster-whisper-base"
         model_name = ASR_MODEL_ID
         
-        # Map common OpenAI model names to Faster Whisper compatible names
+        # Map common OpenAI and community model names to Faster Whisper compatible names
         model_mapping = {
-            'openai/whisper-base': 'base',
+            # OpenAI official models
+            'openai/whisper-tiny': 'tiny',
+            'openai/whisper-base': 'base', 
             'openai/whisper-small': 'small',
             'openai/whisper-medium': 'medium',
             'openai/whisper-large': 'large',
             'openai/whisper-large-v2': 'large-v2',
             'openai/whisper-large-v3': 'large-v3',
+            # Short form variants
+            'whisper-tiny': 'tiny',
             'whisper-base': 'base',
             'whisper-small': 'small',
-            'whisper-medium': 'medium',
+            'whisper-medium': 'medium', 
             'whisper-large': 'large',
             'whisper-large-v2': 'large-v2',
             'whisper-large-v3': 'large-v3',
+            # Community turbo variants (experimental)
+            'whisper-large-v3-turbo': 'large-v3-turbo',
+            'openai/whisper-large-v3-turbo': 'large-v3-turbo',
         }
         
-        # Apply mapping if needed
+        # Apply mapping if needed, with safe fallback
         if model_name in model_mapping:
-            logger.info(f"Mapping model ID '{model_name}' to Faster Whisper format '{model_mapping[model_name]}'")
-            model_name = model_mapping[model_name]
+            mapped_name = model_mapping[model_name]
+            logger.info(f"Mapping model ID '{model_name}' to Faster Whisper format '{mapped_name}'")
+            model_name = mapped_name
+        elif model_name.startswith(('openai/', 'whisper-')) and model_name not in ['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3']:
+            # Unknown model format, fallback to small with warning
+            logger.warning(f"Unknown model format '{model_name}', falling back to 'small' for safety")
+            logger.warning("Supported models: tiny, base, small, medium, large, large-v2, large-v3")
+            model_name = 'small'
         
         logger.info(f"Loading model: {model_name} (original: {ASR_MODEL_ID})")
         load_start_time = time.time()

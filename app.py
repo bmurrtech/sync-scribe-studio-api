@@ -244,10 +244,12 @@ def health_check():
     if init_status.get('model_error'):
         response["initialization"]["error"] = init_status['model_error']
     
-    # Add warm-up configuration info
+    # Add configuration info
     response["configuration"] = {
-        "warm_up_enabled": os.environ.get('ENABLE_MODEL_WARM_UP', 'false').lower() == 'true',
-        "asr_enabled": os.environ.get('ENABLE_FASTER_WHISPER', 'false').lower() == 'true',
+        "warm_up_enabled": os.environ.get('ENABLE_MODEL_WARM_UP', 'true').lower() == 'true',
+        "skip_warmup": os.environ.get('SKIP_MODEL_WARMUP', 'false').lower() == 'true',
+        "openai_whisper_enabled": os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower() == 'true',
+        "asr_backend": "openai-whisper" if os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower() == 'true' else "faster-whisper",
     }
     
     # Return 503 if not ready (for container health checks)

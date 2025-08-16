@@ -1,6 +1,6 @@
-# Installing on Digital Ocean
+# Digital Ocean App Platform Deployment
 
-This guide walks you through deploying the Sync Scribe Studio API on Digital Ocean's App Platform.
+Comprehensive guide for deploying Sync Scribe Studio API on Digital Ocean's App Platform with Spaces (S3-compatible) storage integration.
 
 ## Prerequisites
 
@@ -40,7 +40,7 @@ You'll need to create a Space (Digital Ocean's object storage) for the toolkit t
 1. From your Digital Ocean dashboard, click **Create** and select **App**
 2. Choose **Container Image** as the deployment source
 3. Select **Docker Hub** for the repository
-3. Enter `bmurrtech/sync-scribe-studio-api` as the image name
+3. Enter `bmurrtech/sync-scribe-studio` as the image name
 5. Enter `latest` for the image tag
 6. Click **Next**
 7. If needed, edit the name to remove any extra dashes (Digital Ocean may show an error for long names)

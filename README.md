@@ -1,26 +1,39 @@
 # Sync Scribe Studio API
 
-## Executive Summary
+A comprehensive, self-hosted media processing and transcription platform that eliminates expensive third-party API subscriptions. CPU-optimized by default with automatic GPU acceleration.
 
-Sync Scribe Studio API is a comprehensive media processing and automation platform that eliminates the need for expensive third-party API subscriptions. Built with Python Flask, it provides enterprise-grade media manipulation, transcription, and cloud storage integration capabilities through a secure, self-hosted solution.
+## Quick Start
 
-## Problem Statement
+### 🖥️ **CPU Deployment (Default)**
+| Variable Name | Value |
+|---------------|-------|
+| `API_KEY` | `your_secure_api_key_here` |
 
-Organizations spend thousands of dollars monthly on multiple API subscriptions for media processing, transcription, and file management. These costs compound with:
-- Multiple vendor dependencies
-- API rate limitations
-- Data privacy concerns
-- Vendor lock-in
-- Inconsistent API interfaces
+```bash
+docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here bmurrtech/sync-scribe-studio:latest
+```
 
-## Solution Overview
+### 🚀 **GPU Deployment (Optional)**
+| Variable Name | Value |
+|---------------|-------|
+| `API_KEY` | `your_secure_api_key_here` |
+| `ASR_DEVICE` | `auto` |
 
-Sync Scribe Studio API consolidates essential media processing capabilities into a single, self-hosted platform that:
-- **Eliminates recurring API costs** by replacing services like ChatGPT Whisper, Cloud Convert, Createomate, JSON2Video, PDF.co, Placid, and OCodeKit
-- **Provides complete data sovereignty** with on-premise or private cloud deployment
-- **Offers unlimited processing** without rate limits or usage-based pricing
-- **Ensures consistent API interface** across all media operations
-- **Integrates seamlessly** with cloud storage providers (S3, GCS, Dropbox)
+```bash
+docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR_DEVICE=auto bmurrtech/sync-scribe-studio:gpu
+```
+
+### ✅ **Test Your Deployment**
+```bash
+curl -X GET http://localhost:8080/v1/toolkit/test -H "X-API-Key: your_secure_api_key_here"
+```
+
+> **📁 Storage Configuration**: Only required for `response_type=cloud` in media endpoints. 
+> For S3/GCS setup, see [Configuration Guide](docs/configuration.md).
+
+*Note: `ASR_DEVICE=auto` detects CUDA availability and optimizes automatically.*
+
+---
 
 
 ## Core Features
@@ -154,7 +167,26 @@ Each endpoint is supported by robust payload validation and detailed API documen
 
 ## Deployment Options
 
-### Docker Deployment (Recommended)
+### 💻 **Local Deployment**
+
+**Quick Deploy - CPU:**
+```bash
+docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here --name sync-scribe-cpu bmurrtech/sync-scribe-studio:latest
+```
+
+**Quick Deploy - GPU:**
+```bash
+docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR_DEVICE=auto --name sync-scribe-gpu bmurrtech/sync-scribe-studio:gpu
+```
+
+**Apple Silicon (M1/M2/M3):**
+```bash
+docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here --platform linux/arm64 --name sync-scribe-cpu bmurrtech/sync-scribe-studio:latest
+```
+
+> **📚 Complete Local Guide**: For platform compatibility, CUDA setup, development mode, troubleshooting, and advanced configurations, see [Local Deployment Guide](docs/local-deployment.md).
+
+### ☁️ **Cloud Deployment**
 
 #### Pull from Docker Hub
 
@@ -168,312 +200,25 @@ docker pull bmurrtech/sync-scribe-studio:latest
 docker build -t bmurrtech/sync-scribe-studio:latest .
 ```
 
-## Configuration Guide
+## Configuration
 
-SyncScribe Studio API uses environment variables for configuration. This section provides a comprehensive guide organized by complexity level.
+### Basic Configuration (Required)
 
-### Required Configuration
+**CPU Deployment:** Only `API_KEY` is required - everything else auto-optimizes for CPU performance.
 
-These variables are mandatory for basic operation:
+**GPU Deployment:** Add `ASR_DEVICE=auto` for automatic CUDA detection and optimization.
 
-#### `API_KEY`
-- **Purpose**: Primary authentication for API access
-- **Format**: String (recommended: 32+ characters)
-- **Example**: `your_secure_api_key_here`
-- **Security**: Store securely, never commit to version control
-
-#### Storage Provider (Choose One)
-
-**Option 1: S3-Compatible Storage**
-```bash
-S3_ENDPOINT_URL=https://s3.amazonaws.com          # S3 endpoint URL
-S3_ACCESS_KEY=your_access_key                     # Access key ID
-S3_SECRET_KEY=your_secret_key                     # Secret access key
-S3_BUCKET_NAME=your_bucket                        # Target bucket name
-S3_REGION=us-east-1                              # AWS region
-```
-
-**Option 2: Google Cloud Storage**
-```bash
-GCP_SA_CREDENTIALS='{"type":"service_account"...}'  # Service account JSON
-GCP_BUCKET_NAME=your_gcs_bucket                    # GCS bucket name
-GCP_PROJECT_ID=your_project_id                     # GCP project ID
-GCP_STORAGE_BUCKET=your_bucket_name                # Storage bucket
-GCP_SA_EMAIL=service@project.iam.gserviceaccount.com
-```
-
----
-
-### Recommended Configuration
-
-These settings improve performance and provide basic security:
-
-#### Performance Tuning
-```bash
-GUNICORN_WORKERS=4                    # Worker processes (2-4× CPU cores)
-GUNICORN_TIMEOUT=300                  # Request timeout (seconds)
-MAX_QUEUE_LENGTH=20                   # Concurrent task limit
-LOCAL_STORAGE_PATH=/tmp               # Temporary file directory
-```
-
-#### Basic Rate Limiting
-```bash
-RATE_LIMIT_PER_MINUTE=100            # Requests per minute per IP
-RATE_LIMIT_BURST=100                 # Burst capacity
-RATE_LIMIT_KEY=ip                    # Rate limit by 'ip' or 'api_key'
-```
-
-#### ASR (Speech Recognition) Configuration
-*Note: Defaults are CPU-optimized with auto-detection. Only specify these variables to override defaults or force GPU usage.*
-
----
+**Storage Configuration:** Only required when using `response_type=cloud` in media endpoints.
 
 ### Advanced Configuration
 
-These settings provide enhanced security, optimization, and feature control:
+For detailed configuration options including performance tuning, security settings, rate limiting, and advanced ASR options, see the [Configuration Guide](./docs/configuration.md).
 
-#### Security Headers & CORS
-```bash
-ENABLE_SECURITY_HEADERS=true         # Enable security headers
-ALLOWED_ORIGINS=https://app.example.com,https://dashboard.example.com
-```
-
-#### Feature Flags
-```bash
-ENABLE_OPENAI_WHISPER=false         # Use legacy OpenAI Whisper (default: Faster-Whisper)
-SKIP_MODEL_WARMUP=false             # Skip model preloading (useful for CI/CD)
-APP_DEBUG=false                     # Debug mode (never enable in production)
-```
-
-#### ASR Advanced Settings
-```bash
-ASR_CACHE_DIR=/app/asr_cache        # Model cache directory
-WHISPER_CACHE_DIR=/app/whisper_cache # Whisper model cache
-HF_HOME=/app/huggingface_cache      # Hugging Face cache
-```
-
-#### Application Settings
-```bash
-APP_NAME=SyncScribeStudio           # Application name
-APP_DOMAIN=api.example.com          # Domain (without protocol)
-APP_URL=https://api.example.com     # Full application URL
-CLOUD_BASE_URL=https://your-api.run.app  # Deployed API URL
-LOCAL_BASE_URL=http://localhost:8080     # Local development URL
-```
-
-#### Docker Build Configuration (Build-time only)
-```bash
-BUILD_VARIANT=gpu                   # Build type: 'gpu' or 'cpu'
-CUDA_VERSION=12.1.0                 # CUDA version for GPU builds
-CUDNN_VERSION=8                     # cuDNN version for GPU builds
-```
-
----
-
-### Configuration Templates
-
-#### Minimal Production Setup
-```bash
-# Essential configuration for basic deployment
-API_KEY=your_secure_api_key_here
-S3_ENDPOINT_URL=https://s3.amazonaws.com
-S3_ACCESS_KEY=your_access_key
-S3_SECRET_KEY=your_secret_key
-S3_BUCKET_NAME=your_bucket
-S3_REGION=us-east-1
-GUNICORN_WORKERS=2
-GUNICORN_TIMEOUT=300
-```
-
-#### High-Performance Production
-```bash
-# Optimized for high-volume processing
-API_KEY=your_secure_api_key_here
-S3_ENDPOINT_URL=https://s3.amazonaws.com
-S3_ACCESS_KEY=your_access_key
-S3_SECRET_KEY=your_secret_key
-S3_BUCKET_NAME=your_bucket
-S3_REGION=us-east-1
-
-# Performance optimization
-GUNICORN_WORKERS=8
-GUNICORN_TIMEOUT=600
-MAX_QUEUE_LENGTH=50
-
-# Rate limiting
-RATE_LIMIT_PER_MINUTE=200
-RATE_LIMIT_BURST=300
-RATE_LIMIT_KEY=api_key
-
-# ASR optimization
-ASR_MODEL_ID=openai/whisper-small
-ASR_DEVICE=cuda
-ASR_COMPUTE_TYPE=float16
-ASR_BATCH_SIZE=32
-
-# Security
-ENABLE_SECURITY_HEADERS=true
-ALLOWED_ORIGINS=https://yourdomain.com
-```
-
-#### Development Setup
-```bash
-# Local development with debugging
-API_KEY=dev_api_key_12345
-LOCAL_BASE_URL=http://localhost:8080
-APP_DEBUG=true
-SKIP_MODEL_WARMUP=true
-GUNICORN_WORKERS=2
-GUNICORN_TIMEOUT=120
-LOCAL_STORAGE_PATH=/tmp
-ASR_MODEL_ID=openai/whisper-tiny
-ASR_DEVICE=cpu
-```
-
-### Security Best Practices
-
-1. **API Keys**: Use strong, unique keys (32+ characters)
-2. **Environment Variables**: Never commit secrets to version control
-3. **Rate Limiting**: Enable appropriate limits for your use case
-4. **CORS**: Restrict origins to authorized domains only
-5. **Debug Mode**: Always disable in production
-6. **Storage**: Use encrypted storage backends when possible
-7. **Network**: Deploy behind HTTPS and consider API gateways
-
-## GPU Acceleration (Optional)
-
-*The API is CPU-optimized by default with auto-detection. Only configure GPU settings if you need maximum performance.*
-
-### Minimal GPU Deployment
-
-**Step 1: Use GPU Docker image**
-```bash
-docker pull bmurrtech/sync-scribe-studio:gpu
-```
-
-**Step 2: Add minimal GPU variables**
-```bash
-# Required for GPU deployment
-ASR_DEVICE=cuda                    # Force GPU usage
-```
-
-**Step 3: Run with GPU access**
-```bash
-docker run -d -p 8080:8080 --gpus all \
-  -e API_KEY=your_secure_api_key \
-  -e ASR_DEVICE=cuda \
-  bmurrtech/sync-scribe-studio:gpu
-```
-
-*That's it! The API will auto-optimize other settings for GPU usage.*
-
-#### 2. Optimal GPU Settings
-
-**High-Performance GPU Configuration:**
-```bash
-# GPU-optimized settings
-ASR_DEVICE=cuda                    # Force CUDA usage
-ASR_COMPUTE_TYPE=float16          # Balance of speed/accuracy
-ASR_BATCH_SIZE=32                 # Larger batches for GPU
-ASR_MODEL_ID=openai/whisper-medium  # Larger model for GPU
-ENABLE_MODEL_WARM_UP=true         # Faster GPU warm-up
-
-# Performance tuning
-GUNICORN_WORKERS=4                # Fewer workers for GPU memory
-GUNICORN_TIMEOUT=900              # Longer timeout for large models
-MAX_QUEUE_LENGTH=100              # More concurrent processing
-```
-
-**Memory-Conscious GPU Configuration:**
-```bash
-# Conservative GPU settings for limited VRAM
-ASR_DEVICE=cuda
-ASR_COMPUTE_TYPE=int8             # More aggressive quantization
-ASR_BATCH_SIZE=16                 # Smaller batches
-ASR_MODEL_ID=openai/whisper-small # Smaller model
-GUNICORN_WORKERS=2                # Fewer workers to save VRAM
-```
-
-#### 3. Multi-GPU Setup
-
-For multiple GPU systems:
-```bash
-# Environment variables
-CUDA_VISIBLE_DEVICES=0,1          # Use specific GPUs
-ASR_DEVICE=cuda                   # Enable CUDA
-GUNICORN_WORKERS=8                # More workers for multi-GPU
-
-# Docker with specific GPU
-docker run --gpus '"device=0,1"' ... # Use GPUs 0 and 1
-```
-
-#### 4. GPU Performance Monitoring
-
-**Check GPU utilization:**
-```bash
-# Monitor GPU usage
-nvidia-smi -l 1
-
-# Check Docker container GPU access
-docker exec [container_id] nvidia-smi
-```
-
-**Health endpoint shows current backend:**
-```bash
-curl -H "X-API-Key: your_key" https://your-api/v1/toolkit/test
-# Response includes:
-# "asr_backend": "faster_whisper",
-# "asr_device": "cuda",
-# "asr_compute_type": "float16"
-```
-
-### Performance Guidelines
-
-| Use Case | Device | Workers | Timeout | Queue | ASR Model | Compute Type | Batch Size |
-|----------|---------|---------|---------|-------|-----------|-------------|------------|
-| **CPU Light** | auto/cpu | 2 | 120s | 10 | whisper-tiny | int8 | 4 |
-| **CPU Medium** | auto/cpu | 4 | 300s | 20 | whisper-small | int8 | 4 |
-| **CPU Heavy** | cpu | 8 | 600s | 50 | whisper-small | int8 | 8 |
-| **GPU Medium** | cuda | 4 | 300s | 30 | whisper-medium | float16 | 16 |
-| **GPU Heavy** | cuda | 6 | 900s | 100 | whisper-large-v3 | float16 | 32 |
-| **GPU Enterprise** | cuda | 8+ | 1200s | 200+ | whisper-large-v3 | float16 | 64 |
-
-### Troubleshooting
-
-**Common Issues:**
-- **"Model loading failed"**: Check ASR_CACHE_DIR permissions and disk space
-- **"Rate limit exceeded"**: Adjust RATE_LIMIT_PER_MINUTE or RATE_LIMIT_BURST
-- **"Storage access denied"**: Verify S3/GCP credentials and bucket permissions
-- **"Worker timeout"**: Increase GUNICORN_TIMEOUT for large file processing
-
-### Run the Container
-
-```bash
-docker run -d -p 8080:8080 \
-  # Authentication (required)
-  -e API_KEY=your_secure_api_key \
-  
-  # Storage Configuration (choose one)
-  
-  # Option 1: S3-Compatible Storage
-  -e S3_ENDPOINT_URL=https://s3.amazonaws.com \
-  -e S3_ACCESS_KEY=your_access_key \
-  -e S3_SECRET_KEY=your_secret_key \
-  -e S3_BUCKET_NAME=your_bucket \
-  -e S3_REGION=us-east-1 \
-  
-  # Option 2: Google Cloud Storage
-  # -e GCP_SA_CREDENTIALS='${GCP_SERVICE_ACCOUNT_JSON}' \
-  # -e GCP_BUCKET_NAME=your_gcs_bucket \
-  
-  # Performance & Security
-  -e MAX_QUEUE_LENGTH=20 \
-  -e GUNICORN_WORKERS=4 \
-  -e GUNICORN_TIMEOUT=300 \
-  -e LOCAL_STORAGE_PATH=/tmp \
-  
-  bmurrtech/sync-scribe-studio-api:latest
-```
+**Common configurations:**
+- **Performance optimization**: Worker counts, timeouts, queue management
+- **Security**: Rate limiting, CORS, security headers
+- **GPU tuning**: Model selection, batch sizing, memory optimization
+- **Development**: Debug modes, local testing, CI/CD settings
 
 ## Cloud Platform Deployment
 
@@ -585,10 +330,18 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - **Issues**: [GitHub Issues](https://github.com/bmurrtech/sync-scribe-studio/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/bmurrtech/sync-scribe-studio/discussions)
 
+## Attribution
+
+This project is based on concepts from Stephen G. Pope's **No-Code Architect Tool Kit** but is an independent implementation and is not affiliated with or endorsed by Stephen G. Pope or his original work.
+
+## Disclaimer
+
+**USE AT YOUR OWN RISK**: This software is provided "as is" without warranty of any kind. The authors and contributors assume no liability for any damages, losses, or consequences arising from the use of this API. Users are responsible for ensuring compliance with applicable laws and regulations when using this software.
+
 ## License
 
 This project is licensed under the [GNU General Public License v2.0 (GPL-2.0)](LICENSE).
 
 ---
 
-*Sync Scribe Studio API - Advanced media processing and transcription toolkit.*
+**Made with ❤️ for humanity** | *Sync Scribe Studio API - Advanced media processing and transcription toolkit.*
