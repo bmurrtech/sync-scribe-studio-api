@@ -1,17 +1,16 @@
 # Sync Scribe Studio API
 
-**Superior ASR accuracy and speed for professional transcription** - A comprehensive, self-hosted media processing platform that outperforms OpenAI Whisper base models with **42% faster processing and significantly higher accuracy** on long-form content.
+**The most accurate and fastest ASR transcription API** - Outperforms OpenAI Whisper base models with **42% faster processing** and **superior accuracy** on long-form content. Self-hosted media processing platform that eliminates expensive third-party API subscriptions.
 
-## 🏆 **Why Sync Scribe Studio Leads in Accuracy**
+## 🏆 **Why Choose Sync Scribe Studio for Transcription**
 
-**Data-driven results show Sync Scribe Studio consistently outperforms legacy solutions:**
-- **42% faster** than NCA Toolkit on 42-minute audio (~60s vs ~85s)
-- **Superior accuracy** with proper phrase recognition ("hallowed be" vs "hall of be")
-- **Professional formality** maintained ("going to" vs "gonna")
-- **Reliable output** without repetition glitches or nonsensical words
-- **100x real-time processing** speed with `accuracy-turbo` profile
+- **🎯 Superior Accuracy**: Proper phrase recognition ("hallowed be" vs "hall of be"), professional formality preserved
+- **⚡ 42% Faster**: ~60s vs ~85s on 42-minute audio compared to legacy solutions  
+- **🚫 No Glitches**: Reliable output without repetition artifacts or nonsensical words
+- **⚙️ Self-Hosted**: Complete control, no API limits, eliminate subscription costs
+- **📈 100x Real-Time**: Process 42 minutes of audio in ~69 seconds
 
-📊 **[View Complete Performance Analysis →](docs/performance-analysis.md)**
+📊 **[Complete Performance Analysis](docs/performance-analysis.md)** | 🏆 **[Optimal Configurations](docs/optimal-configurations.md)**
 
 ## 🚀 Core Features
 
