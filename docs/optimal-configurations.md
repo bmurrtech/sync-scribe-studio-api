@@ -84,12 +84,12 @@ ASR_COMPUTE_TYPE=float16
 ENABLE_FASTER_WHISPER=true
 ```
 
-**Development (Speed Focus)**:
+**Development/Default (Speed Focus)**:
 ```env
-ASR_PROFILE=speed
-ASR_MODEL_ID=small
+# Speed profile is now the default - no configuration needed!
+# ASR_PROFILE=speed  # (default, no need to set)
 ASR_DEVICE=auto
-ASR_COMPUTE_TYPE=float16
+ASR_COMPUTE_TYPE=auto
 ENABLE_FASTER_WHISPER=true
 ```
 

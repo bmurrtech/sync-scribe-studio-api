@@ -6,19 +6,19 @@ The Sync Scribe Studio API supports performance-optimized configurations through
 
 The Sync Scribe Studio API uses a comprehensive profile-based system with three optimized presets that automatically configure all ASR parameters for optimal performance.
 
-### **System Default: Balanced Profile (whisper-small)**
-- **Best for**: General-purpose transcription with good speed/accuracy balance
+### **System Default: Speed Profile (whisper-small)**
+- **Best for**: General-purpose transcription with optimal speed/accuracy balance
 - **Model**: `openai/whisper-small` with auto-optimized compute type
-- **Performance**: Solid accuracy with reasonable processing speed
+- **Performance**: Superior accuracy and speed compared to deprecated balanced profile
 - **Memory**: Works on both CPU (1-2GB RAM) and GPU (4-6GB VRAM)
-- **Profile**: `ASR_PROFILE=balanced` (default if not specified)
+- **Profile**: `ASR_PROFILE=speed` (default if not specified)
 
 ---
 
 ## Available Profiles
 
-### Speed Profile (`ASR_PROFILE=speed`)
-**Optimized for real-time processing and maximum throughput**
+### Speed Profile (`ASR_PROFILE=speed`) [SYSTEM DEFAULT]
+**Optimized for real-time processing and maximum throughput - now the recommended default**
 
 - **Model**: whisper-small (39M parameters)
 - **Compute Type**: CPU: `int8`, GPU: `float16`
@@ -32,8 +32,8 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 
 **Expected Performance**: 2-3x faster than balanced, suitable for 5+ minute audio files in under 30 seconds on GPU.
 
-### Balanced Profile (`ASR_PROFILE=balanced`) [SYSTEM DEFAULT]
-**Good balance of speed and accuracy for general use**
+### Balanced Profile (`ASR_PROFILE=balanced`) [DEPRECATED]
+**⚠️ DEPRECATED: Use `speed` profile instead - provides better speed AND accuracy**
 
 - **Model**: whisper-small (39M parameters)
 - **Compute Type**: Auto-optimized (CPU: `int8`, GPU: `float16`)
@@ -45,10 +45,11 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 - **Speech Pad**: Optimized for segment boundaries
 - **Context Awareness**: `condition_on_previous_text=True`
 - **Quality Control**: Configured compression ratio and probability thresholds
-- **Best For**: General transcription, podcasts, interviews, business applications
+- **Best For**: ⚠️ **Migration Notice**: Use `speed` profile instead
 - **Requirements**: Works on both CPU and GPU, 4-6GB VRAM recommended for GPU
+- **Migration**: Simply change `ASR_PROFILE=balanced` to `ASR_PROFILE=speed` or remove the variable entirely (speed is now default)
 
-**Expected Performance**: Good speed with improved accuracy over speed profile, suitable for most use cases.
+**⚠️ DEPRECATED**: This profile is deprecated as the `speed` profile provides better performance in all metrics.
 
 ### Accuracy Profile (`ASR_PROFILE=accuracy`)
 **Maximum fidelity transcription - highest quality available**
@@ -84,7 +85,8 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 
 ### Primary Configuration
 ```bash
-ASR_PROFILE=balanced  # Options: speed, balanced, accuracy, accuracy-turbo
+ASR_PROFILE=speed  # Options: speed, accuracy, accuracy-turbo, balanced (deprecated)
+# Note: speed is the default - no need to specify unless using other profiles
 ```
 
 ### Override Individual Settings (Optional)

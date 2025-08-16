@@ -38,8 +38,9 @@ GCP_BUCKET_NAME = os.environ.get('GCP_BUCKET_NAME', '')
 ENABLE_OPENAI_WHISPER = os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower() == 'true'
 
 # Performance Profile System
-# Options: 'speed', 'accuracy', 'balanced', 'custom'
-ASR_PROFILE = os.environ.get('ASR_PROFILE', 'balanced').lower()
+# Options: 'speed', 'accuracy', 'balanced', 'accuracy-turbo', 'custom'
+# Speed profile is now the default for optimal performance (better speed AND accuracy than balanced)
+ASR_PROFILE = os.environ.get('ASR_PROFILE', 'speed').lower()
 
 # Profile-based configurations
 # Note: temperature_increment_on_fallback is not supported by faster-whisper
@@ -87,7 +88,7 @@ PROFILE_CONFIGS = {
 }
 
 # Get profile configuration
-_profile_config = PROFILE_CONFIGS.get(ASR_PROFILE, PROFILE_CONFIGS['balanced'])
+_profile_config = PROFILE_CONFIGS.get(ASR_PROFILE, PROFILE_CONFIGS['speed'])
 
 # Faster-Whisper ASR Settings with profile-based defaults
 ASR_MODEL_ID = os.environ.get('ASR_MODEL_ID', _profile_config['model_id'])
