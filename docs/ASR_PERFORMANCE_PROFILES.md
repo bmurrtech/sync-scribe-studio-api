@@ -25,7 +25,7 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 - **Beam Size**: 1 (greedy decoding)
 - **Best Of**: 1 (single generation)
 - **Temperature**: 0.0 (deterministic)
-- **Temperature Increment**: 0.0 (no fallback)
+- **Temperature**: 0.0 (deterministic)
 - **VAD Silence**: 300ms (aggressive silence detection)
 - **Batch Size**: CPU: 4, GPU: 16
 - **Best For**: Real-time transcription, high-volume processing, live streaming, CPU deployments
@@ -40,7 +40,7 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 - **Beam Size**: 2 (small beam search)
 - **Best Of**: 2 (dual generation)
 - **Temperature**: 0.0 (deterministic start)
-- **Temperature Increment**: 0.1 (minimal fallback)
+- **Temperature**: 0.0 (deterministic)
 - **VAD Silence**: 400ms (balanced silence detection)
 - **Speech Pad**: Optimized for segment boundaries
 - **Context Awareness**: `condition_on_previous_text=True`
@@ -58,7 +58,7 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 - **Beam Size**: 3 (wider beam search)
 - **Best Of**: 5 (multiple generations)
 - **Temperature**: 0.0 (deterministic start)
-- **Temperature Increment**: 0.2 (higher fallback for quality)
+- **Temperature**: 0.0 (deterministic)
 - **VAD Silence**: 500ms (conservative silence detection)
 - **Batch Size**: CPU: 2, GPU: 8 (conservative for large model VRAM usage)
 - **Best For**: Critical transcription where fidelity is paramount, legal documents, medical dictation, broadcast archiving
@@ -73,7 +73,7 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 - **Beam Size**: 2 (optimized for speed)
 - **Best Of**: 3 (faster processing)
 - **Temperature**: 0.0 (deterministic start)
-- **Temperature Increment**: 0.1 (minimal fallback)
+- **Temperature**: 0.0 (deterministic)
 - **VAD Silence**: 350ms (faster processing)
 - **Batch Size**: CPU: 3, GPU: 16 (higher throughput)
 - **Best For**: High-volume accurate transcription, production deployments requiring both speed and quality
@@ -93,7 +93,7 @@ ASR_MODEL_ID=openai/whisper-medium         # Override model
 ASR_BEAM_SIZE=3                            # Override beam size
 ASR_BEST_OF=5                              # Override best_of
 ASR_TEMPERATURE=0.1                        # Override temperature
-ASR_TEMPERATURE_INCREMENT_ON_FALLBACK=0.2  # Override fallback temp
+# Note: temperature_increment_on_fallback not supported by faster-whisper
 ASR_VAD_MIN_SILENCE_MS=300                 # Override VAD timing
 ASR_BATCH_SIZE=8                           # Override batch size
 ```
@@ -105,7 +105,7 @@ Based on research insights for optimal speed vs quality balance:
 
 - **Speed Profile**: `beam_size=1` + `best_of=1` for fully greedy decoding
 - **Balanced/Accuracy**: Higher `best_of` values for quality with deterministic results
-- **Temperature Control**: `temperature_increment_on_fallback=0.0` prevents temperature escalation in speed mode
+- **Temperature Control**: `temperature=0.0` ensures deterministic decoding across all profiles
 - **Consistent Results**: `best_of` parameter generates multiple candidates and selects optimal transcript
 
 ### VAD & Conversational Audio Optimizations
