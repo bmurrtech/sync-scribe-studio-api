@@ -2,6 +2,44 @@
 
 A comprehensive, self-hosted media processing and transcription platform that eliminates expensive third-party API subscriptions. CPU-optimized by default with automatic GPU acceleration.
 
+## 🚀 Core Features
+
+### 🎵 Media Processing
+- **Audio/Video Conversion**: Transform between formats with customizable codecs
+- **Transcription & Translation**: Convert speech to text in multiple languages
+- **Video Captioning**: Add professional captions with customizable styling
+- **Media Concatenation**: Combine multiple files seamlessly
+- **Silence Detection**: Identify and process silent segments
+- **Metadata Extraction**: Retrieve comprehensive media information
+
+### ⚡ Advanced Capabilities
+- **Web Screenshots**: Capture web pages with device emulation
+- **Python Code Execution**: Run custom processing scripts remotely
+- **FFmpeg Integration**: Access advanced media manipulation
+- **Cloud Storage**: Direct integration with S3, GCS, and Dropbox
+
+## 🔐 Security Features
+
+### 🔑 Authentication & Authorization
+- **API Key Authentication**: Secure access control via `X-API-Key` header
+- **Environment-based Configuration**: Sensitive credentials stored securely
+- **Request Validation**: Comprehensive payload validation on all endpoints
+
+### 🛡️ Rate Limiting & Protection
+- **Configurable Rate Limits**: Prevent abuse with customizable thresholds
+- **Queue Management**: Control concurrent processing with `MAX_QUEUE_LENGTH`
+- **Timeout Protection**: Configurable timeouts for long-running operations
+
+### 🔒 Security Headers
+- **CORS Configuration**: Controlled cross-origin resource sharing
+- **Content-Type Validation**: Strict input validation
+- **Secure File Handling**: Sandboxed file operations with cleanup
+
+### 🛡️ Data Protection
+- **Temporary File Cleanup**: Automatic removal of processed files
+- **No Data Retention**: Files processed in memory when possible
+- **Encrypted Storage**: Support for encrypted cloud storage backends
+
 ## Quick Start
 
 ### 🖥️ **CPU Deployment (Default Balanced Profile)**
@@ -27,12 +65,12 @@ docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR
 
 ### ⚡ **Performance Profile Configurations**
 
-| Profile | Model | Use Case | Speed (5:48 audio) | System Requirements | Min Variables |
-|---------|-------|----------|---------------------|---------------------|---------------|
-| **Speed** | whisper-small | Real-time, high-volume | Sub-2 seconds | 2GB RAM | `ASR_PROFILE=speed` |
-| **Balanced** | whisper-small | General purpose (DEFAULT) | 2-3 seconds | 4GB RAM | None required |
-| **Accuracy** | whisper-large-v3 | Maximum fidelity | 5-6 seconds | 10-12GB VRAM + GPU | `ASR_PROFILE=accuracy` + GPU |
-| **Accuracy-Turbo** | whisper-large-v3-turbo | Production speed + quality | 3-4 seconds | 6-8GB VRAM + GPU | `ASR_PROFILE=accuracy-turbo` + GPU |
+| Profile | Model | Use Case | Speed (5:48 audio) | System Requirements | Variable | Value |
+|---------|-------|----------|---------------------|---------------------|----------|-------|
+| **Speed** | whisper-small | Real-time, high-volume | Sub-2 seconds | 2GB RAM | `ASR_PROFILE` | `speed` |
+| **Balanced** | whisper-small | General purpose (DEFAULT) | 2-3 seconds | 4GB RAM | `ASR_PROFILE` | `balanced` |
+| **Accuracy** | whisper-large-v3 | Maximum fidelity | 5-6 seconds | 10-12GB VRAM + GPU | `ASR_PROFILE` | `accuracy` |
+| **Accuracy-Turbo** | whisper-large-v3-turbo | Production speed + quality | 3-4 seconds | 6-8GB VRAM + GPU | `ASR_PROFILE` | `accuracy-turbo` |
 
 > **💾 Hardware Requirements**: Speed/Balanced profiles work on modest CPU hardware. Accuracy profile requires NVIDIA GPU with 10-12GB VRAM, Accuracy-Turbo requires 6-8GB VRAM. For detailed system specs, GPU compatibility, and performance benchmarks, see [ASR Performance Profiles](docs/ASR_PERFORMANCE_PROFILES.md).
 
@@ -86,45 +124,6 @@ curl -X GET http://localhost:8080/v1/toolkit/test -H "X-API-Key: your_secure_api
 *Note: `ASR_DEVICE=auto` detects CUDA availability and optimizes automatically.*
 
 ---
-
-
-## Core Features
-
-### Media Processing
-- **Audio/Video Conversion**: Transform between formats with customizable codecs
-- **Transcription & Translation**: Convert speech to text in multiple languages
-- **Video Captioning**: Add professional captions with customizable styling
-- **Media Concatenation**: Combine multiple files seamlessly
-- **Silence Detection**: Identify and process silent segments
-- **Metadata Extraction**: Retrieve comprehensive media information
-
-### Advanced Capabilities
-- **Web Screenshots**: Capture web pages with device emulation
-- **Python Code Execution**: Run custom processing scripts remotely
-- **FFmpeg Integration**: Access advanced media manipulation
-- **Cloud Storage**: Direct integration with S3, GCS, and Dropbox
-
-## Security Features
-
-### Authentication & Authorization
-- **API Key Authentication**: Secure access control via `X-API-Key` header
-- **Environment-based Configuration**: Sensitive credentials stored securely
-- **Request Validation**: Comprehensive payload validation on all endpoints
-
-### Rate Limiting & Protection
-- **Configurable Rate Limits**: Prevent abuse with customizable thresholds
-- **Queue Management**: Control concurrent processing with `MAX_QUEUE_LENGTH`
-- **Timeout Protection**: Configurable timeouts for long-running operations
-
-### Security Headers
-- **CORS Configuration**: Controlled cross-origin resource sharing
-- **Content-Type Validation**: Strict input validation
-- **Secure File Handling**: Sandboxed file operations with cleanup
-
-### Data Protection
-- **Temporary File Cleanup**: Automatic removal of processed files
-- **No Data Retention**: Files processed in memory when possible
-- **Encrypted Storage**: Support for encrypted cloud storage backends
 
 ## API Endpoints
 
@@ -274,121 +273,22 @@ docker pull bmurrtech/sync-scribe-studio-api:arm64
 docker build -t bmurrtech/sync-scribe-studio-api:latest .
 ```
 
-#### 🏷️ **Tagging Policy**
 
-**Stable Tags (Long-term):**
-- `latest` → Most stable production build (amd64, maximum compatibility)
-- `gpu`, `arm64` → Rolling architecture-specific tags (only when needed)
+## 📚 Additional Resources
 
-**Development Tags (Auto-cleaned):**  
-- `vX.Y.Z-*` → Temporary testing snapshots, deleted after superseding
+### Configuration & Setup
+- **[Configuration Guide](./docs/configuration.md)** - Comprehensive environment variables, performance tuning, and security settings
+- **[Local Deployment Guide](./docs/local-deployment.md)** - Platform compatibility, CUDA setup, development mode, and troubleshooting
+- **[ASR Performance Profiles](./docs/ASR_PERFORMANCE_PROFILES.md)** - Detailed ASR profiles, benchmarks, and optimization
 
-**Best Practices:**
-- **Stable deployments**: Use `latest` for broadest compatibility  
-- **GPU acceleration**: Use `gpu` only when CUDA is required
-- **Apple Silicon**: Use `arm64` for M1/M2/M3 Macs and ARM64 servers
-- **Reproducible builds**: Pin by digest for exact builds: `@sha256:...`
-- **Avoid development tags**: `vX.Y.Z-*` are temporary and may be deleted
+### Cloud Deployment
+- **[Google Cloud Run Guide](./docs/cloud-installation/gcp.md)** - Cost-effective production deployment with automatic scaling
+- **[Digital Ocean Guide](./docs/cloud-installation/do.md)** - Simple deployment with predictable pricing
+- **[Docker Compose Setup](./docker-compose.md)** - Self-hosted deployment with complete control
 
-## Configuration
-
-### Basic Configuration (Required)
-
-**CPU Deployment:** Only `API_KEY` is required - everything else auto-optimizes for CPU performance.
-
-**GPU Deployment:** Add `ASR_DEVICE=auto` for automatic CUDA detection and optimization.
-
-**Storage Configuration:** Only required when using `response_type=cloud` in media endpoints.
-
-### Advanced Configuration
-
-For detailed configuration options including performance tuning, security settings, rate limiting, and advanced ASR options, see the [Configuration Guide](./docs/configuration.md).
-
-**Common configurations:**
-- **Performance optimization**: Worker counts, timeouts, queue management
-- **Security**: Rate limiting, CORS, security headers
-- **GPU tuning**: Model selection, batch sizing, memory optimization
-- **Development**: Debug modes, local testing, CI/CD settings
-
-## Cloud Platform Deployment
-
-### Production Environments
-
-#### Google Cloud Run
-- **Best for**: Cost-effective production deployments
-- **Pros**: Pay-per-use pricing, automatic scaling, managed infrastructure
-- **Limitations**: 60-minute timeout for HTTP requests
-- **Guide**: [Deploy to Google Cloud Run](./docs/cloud-installation/gcp.md)
-
-#### Digital Ocean App Platform
-- **Best for**: Simple deployments with predictable costs
-- **Pros**: Easy setup, integrated monitoring, automatic SSL
-- **Note**: Use webhook_url for long-running processes (>1 minute)
-- **Guide**: [Deploy to Digital Ocean](./docs/cloud-installation/do.md)
-
-#### Self-Hosted Docker
-- **Best for**: Complete control and customization
-- **Pros**: No vendor lock-in, unlimited processing time
-- **Requirements**: Linux server with Docker installed
-- **Guide**: [Docker Compose Setup](./docker-compose.md)
-
-### Development Environment
-
-#### Local Development Stack
-Complete development environment with MinIO (S3-compatible storage) and n8n (workflow automation):
-- **Guide**: [Local Development Setup](./docker-compose.local.minio.n8n.md)
-
-## Quick Start Guide
-
-### 1. Deploy the API
-Choose your preferred deployment method from the options above.
-
-### 2. Configure Authentication
-Set your `API_KEY` environment variable during deployment.
-
-### 3. Test the Installation
-```bash
-curl -X GET https://your-api-url/v1/toolkit/test \
-  -H "X-API-Key: your_api_key"
-```
-
-### 4. Test the API
-- Use any API testing tool (Postman, curl, etc.)
-- Configure environment variables:
-  - `base_url`: Your API URL
-  - `x-api-key`: Your API key
-- Test example endpoints
-
-## System Requirements
-
-### Minimum Requirements
-- **CPU**: 2 cores
-- **RAM**: 4GB
-- **Storage**: 10GB available
-- **OS**: Linux (Ubuntu 20.04+ recommended)
-- **Docker**: Version 20.10+
-
-### Recommended for Production
-- **CPU**: 4+ cores
-- **RAM**: 8GB+
-- **Storage**: 50GB+ SSD
-- **Network**: 100Mbps+ bandwidth
-
-## Performance Optimization
-
-### Scaling Guidelines
-
-| Workload | Workers | Timeout | Queue Length | RAM |
-|----------|---------|---------|--------------|-----|
-| Light | 2 | 120s | 10 | 4GB |
-| Medium | 4 | 300s | 20 | 8GB |
-| Heavy | 8 | 600s | 50 | 16GB |
-
-### Optimization Tips
-1. Use S3-compatible storage for large files
-2. Enable webhook_url for long-running tasks
-3. Configure appropriate worker counts based on CPU cores
-4. Monitor queue length to prevent overload
+### Development
+- **[Local Development Stack](./docker-compose.local.minio.n8n.md)** - Development environment with MinIO and n8n
+- **[Adding Routes Guide](./docs/adding_routes.md)** - Contributing new API endpoints
 
 ## Monitoring & Maintenance
 
