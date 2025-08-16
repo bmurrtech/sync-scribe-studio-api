@@ -2,19 +2,16 @@
 
 The Sync Scribe Studio API supports performance-optimized configurations through the `ASR_PROFILE` environment variable or individual ASR settings.
 
-## 🎯 Recommended Defaults
+## 🎯 Profile-Based Configuration System
 
-### **CPU Default: Speed-Optimized (whisper-small)**
-- **Best for**: Cost-effective deployments, real-time processing
-- **Model**: `openai/whisper-small` with `compute_type=int8`
-- **Performance**: 2-4x faster than larger models with solid accuracy
-- **Memory**: ~1-2GB RAM, works on modest hardware
+The Sync Scribe Studio API uses a comprehensive profile-based system with three optimized presets that automatically configure all ASR parameters for optimal performance.
 
-### **GPU Default: Balanced Performance (whisper-large-v3-turbo)**  
-- **Best for**: Production deployments with GPU acceleration
-- **Model**: `openai/whisper-large-v3-turbo` with `compute_type=float16`
-- **Performance**: Best balance of speed and accuracy on GPU
-- **Memory**: ~8-10GB VRAM recommended
+### **System Default: Balanced Profile (whisper-small)**
+- **Best for**: General-purpose transcription with good speed/accuracy balance
+- **Model**: `openai/whisper-small` with auto-optimized compute type
+- **Performance**: Solid accuracy with reasonable processing speed
+- **Memory**: Works on both CPU (1-2GB RAM) and GPU (4-6GB VRAM)
+- **Profile**: `ASR_PROFILE=balanced` (default if not specified)
 
 ---
 
@@ -35,21 +32,23 @@ The Sync Scribe Studio API supports performance-optimized configurations through
 
 **Expected Performance**: 2-3x faster than balanced, suitable for 5+ minute audio files in under 30 seconds on GPU.
 
-### Balanced Profile (`ASR_PROFILE=balanced`) [GPU DEFAULT]
-**Optimal balance of speed and accuracy for GPU deployments**
+### Balanced Profile (`ASR_PROFILE=balanced`) [SYSTEM DEFAULT]
+**Good balance of speed and accuracy for general use**
 
-- **Model**: whisper-large-v3-turbo (780M parameters)
-- **Compute Type**: `float16` (GPU only)
+- **Model**: whisper-small (39M parameters)
+- **Compute Type**: Auto-optimized (CPU: `int8`, GPU: `float16`)
 - **Beam Size**: 2 (small beam search)
 - **Best Of**: 2 (dual generation)
 - **Temperature**: 0.0 (deterministic start)
 - **Temperature Increment**: 0.1 (minimal fallback)
 - **VAD Silence**: 400ms (balanced silence detection)
-- **Batch Size**: GPU: 12-16 (auto-adjusted)
-- **Best For**: Production transcription, business applications, content creation
-- **Requirements**: 8-10GB VRAM recommended
+- **Speech Pad**: Optimized for segment boundaries
+- **Context Awareness**: `condition_on_previous_text=True`
+- **Quality Control**: Configured compression ratio and probability thresholds
+- **Best For**: General transcription, podcasts, interviews, business applications
+- **Requirements**: Works on both CPU and GPU, 4-6GB VRAM recommended for GPU
 
-**Expected Performance**: Near large-v3 accuracy at ~2x the speed.
+**Expected Performance**: Good speed with improved accuracy over speed profile, suitable for most use cases.
 
 ### Accuracy Profile (`ASR_PROFILE=accuracy`)
 **Maximum accuracy for critical transcription needs**
@@ -84,15 +83,38 @@ ASR_VAD_MIN_SILENCE_MS=300                 # Override VAD timing
 ASR_BATCH_SIZE=8                           # Override batch size
 ```
 
-## Performance Tuning Notes
+## 🎯 Advanced Implementation Features
 
-### Deterministic Decoding
-All profiles use `temperature=0.0` with controlled fallback to prevent quality degradation while maintaining speed. The `best_of` parameter ensures consistent results by generating multiple candidates and selecting the best.
+### Deterministic Decoding Implementation
+Based on research insights for optimal speed vs quality balance:
 
-### VAD (Voice Activity Detection)
-- **Lower silence thresholds** (300ms) = faster processing, may miss short pauses
-- **Higher silence thresholds** (500ms) = better quality, preserves natural speech patterns
-- Reduces hallucinations from silence and improves overall transcript quality
+- **Speed Profile**: `beam_size=1` + `best_of=1` for fully greedy decoding
+- **Balanced/Accuracy**: Higher `best_of` values for quality with deterministic results
+- **Temperature Control**: `temperature_increment_on_fallback=0.0` prevents temperature escalation in speed mode
+- **Consistent Results**: `best_of` parameter generates multiple candidates and selects optimal transcript
+
+### VAD & Conversational Audio Optimizations
+- **Profile-tuned silence detection**: 300ms (speed) → 400ms (balanced) → 500ms (accuracy)
+- **Reduced hallucinations**: Optimized `min_silence_duration_ms` prevents silence-based artifacts
+- **Improved throughput**: Especially effective on conversational audio with natural pauses
+- **Speech padding**: Optimized `speech_pad_ms` for better segment boundaries
+- **Quality vs Speed**: Lower thresholds = faster processing but may miss short pauses
+
+### Advanced Parameter Tuning
+- **Quality Control Thresholds**:
+  - `compression_ratio_threshold`: Detects repetitive or low-quality segments
+  - `logprob_threshold`: Filters low-confidence transcriptions
+  - `no_speech_threshold`: Identifies silent segments accurately
+- **Context Awareness**: `condition_on_previous_text=True` for coherent long-form transcription
+- **Device Optimization**: Automatic batch size adjustment per device type and profile
+- **Memory Management**: Profile-specific VRAM and RAM optimization
+
+### Profile-Specific Optimizations
+| Profile | Beam Size | Best Of | Temp Increment | VAD Silence | Focus |
+|---------|-----------|---------|----------------|-------------|-------|
+| **Speed** | 1 (greedy) | 1 | 0.0 (none) | 300ms | Maximum throughput |
+| **Balanced** | 2 | 2 | 0.1 (minimal) | 400ms | Speed/accuracy balance |
+| **Accuracy** | 3 | 5 | 0.2 (quality) | 500ms | Maximum quality |
 
 ### Beam Search vs Speed
 - **beam_size=1** (greedy): Fastest, ~80-90% accuracy of beam search

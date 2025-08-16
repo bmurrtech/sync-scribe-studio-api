@@ -51,14 +51,15 @@ Comprehensive configuration options for Sync Scribe Studio API with user-friendl
 
 > **📊 For detailed model comparisons, performance profiles, and diminishing returns analysis, see [ASR Performance Profiles](ASR_PERFORMANCE_PROFILES.md).**
 
-**Recommended Defaults:**
-- **CPU**: `openai/whisper-small` with `compute_type=int8`
-- **GPU**: `openai/whisper-large-v3-turbo` with `compute_type=float16`
+**Profile-Based System Defaults:**
+- **System Default**: `ASR_PROFILE=balanced` (whisper-small with auto-optimized compute type)
+- **Speed Priority**: `ASR_PROFILE=speed` (whisper-small with greedy decoding)
+- **Maximum Quality**: `ASR_PROFILE=accuracy` (whisper-large-v3 with extensive search)
 
 | Variable Name | Default | Options | Purpose |
 |---------------|---------|---------|----------|
 | `ASR_PROFILE` | `balanced` | `speed`, `balanced`, `accuracy` | Pre-configured performance profiles |
-| `ASR_MODEL_ID` | `openai/whisper-small` (CPU) / `openai/whisper-large-v3-turbo` (GPU) | `tiny`, `base`, `small`, `large-v3-turbo`, `large-v3` | Model size selection |
+| `ASR_MODEL_ID` | Profile-dependent (balanced: `whisper-small`, accuracy: `whisper-large-v3`) | `tiny`, `base`, `small`, `large-v3-turbo`, `large-v3` | Model size selection |
 | `ASR_DEVICE` | `auto` | `cpu`, `cuda`, `auto` | Processing device |
 | `ASR_COMPUTE_TYPE` | `auto` | `int8`, `float16`, `float32`, `auto` | Model precision |
 | `ASR_BEAM_SIZE` | `5` | `1-10` | Search width for decoding |

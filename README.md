@@ -4,53 +4,58 @@ A comprehensive, self-hosted media processing and transcription platform that el
 
 ## Quick Start
 
-### 🖥️ **CPU Deployment (Speed Optimized)**
+### 🖥️ **CPU Deployment (Default Balanced Profile)**
 | Variable Name | Value | Notes |
 |---------------|-------|-------|
 | `API_KEY` | `your_secure_api_key_here` | Required |
-| `ASR_MODEL_ID` | `openai/whisper-small` | Default (auto-optimized) |
-| `ASR_COMPUTE_TYPE` | `int8` | CPU performance optimized |
+| `ASR_PROFILE` | `balanced` | Default (whisper-small, auto-optimized) |
 
 ```bash
 docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here bmurrtech/sync-scribe-studio:latest
 ```
 
-### 🚀 **GPU Deployment (Balanced Performance)**
+### 🚀 **GPU Deployment (Default Balanced Profile)**
 | Variable Name | Value | Notes |
 |---------------|-------|-------|
 | `API_KEY` | `your_secure_api_key_here` | Required |
 | `ASR_DEVICE` | `auto` | Auto-detects CUDA |
-| `ASR_MODEL_ID` | `openai/whisper-large-v3-turbo` | Default for GPU |
-| `ASR_COMPUTE_TYPE` | `float16` | GPU performance optimized |
+| `ASR_PROFILE` | `balanced` | Default (whisper-small, auto-optimized) |
 
 ```bash
 docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR_DEVICE=auto bmurrtech/sync-scribe-studio:gpu
 ```
 
-### ⚡ **Performance Configurations**
+### ⚡ **Performance Profile Configurations**
 
-**CPU Speed Priority:**
+**Speed Profile (Maximum Throughput):**
 ```bash
-# Fastest CPU transcription (small model + int8)
+# Fastest transcription - greedy decoding, aggressive VAD
 docker run -d -p 8080:8080 \
   -e API_KEY=your_secure_api_key_here \
-  -e ASR_MODEL_ID=openai/whisper-small \
-  -e ASR_COMPUTE_TYPE=int8 \
+  -e ASR_PROFILE=speed \
   bmurrtech/sync-scribe-studio:latest
 ```
 
-**GPU Max Accuracy:**
+**Balanced Profile (Default - Good Speed/Accuracy):**
 ```bash
-# Best quality transcription (large-v3 + float16)
+# Balanced transcription - whisper-small with beam search
+docker run -d -p 8080:8080 \
+  -e API_KEY=your_secure_api_key_here \
+  -e ASR_PROFILE=balanced \
+  bmurrtech/sync-scribe-studio:latest
+```
+
+**Accuracy Profile (Maximum Quality):**
+```bash
+# Best quality transcription - large-v3 model with extensive search
 docker run -d -p 8080:8080 --gpus all \
   -e API_KEY=your_secure_api_key_here \
   -e ASR_DEVICE=cuda \
-  -e ASR_MODEL_ID=openai/whisper-large-v3 \
-  -e ASR_COMPUTE_TYPE=float16 \
+  -e ASR_PROFILE=accuracy \
   bmurrtech/sync-scribe-studio:gpu
 ```
 
-> **📊 Advanced Performance Tuning**: For detailed ASR profiles, model comparisons, and performance optimization, see [ASR Performance Profiles](docs/ASR_PERFORMANCE_PROFILES.md).
+> **📊 Advanced Performance Tuning**: For detailed ASR profiles, deterministic decoding, VAD optimization, and performance analysis, see [ASR Performance Profiles](docs/ASR_PERFORMANCE_PROFILES.md).
 
 ### ✅ **Test Your Deployment**
 ```bash
