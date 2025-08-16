@@ -51,7 +51,7 @@ This guide provides data-driven recommendations for configuring Sync Scribe Stud
 |---------|-------|----------|-------|-------------|
 | `accuracy` | `large-v3` | GPU | Repetition glitches | Use `accuracy-turbo` instead |
 | Any | Any | CPU | OOM on long audio | Use cloud GPU |
-| Legacy | `base` | Any | Poor accuracy | Upgrade to `small` minimum |
+| OpenAI Whisper | `base` | Any | Poor accuracy vs faster-whisper | Upgrade to `small` minimum |
 
 ### 📊 Performance Comparison Matrix
 
@@ -59,7 +59,7 @@ This guide provides data-driven recommendations for configuring Sync Scribe Stud
 ```
 🥇 speed (GPU):        ~60s  (100% baseline)
 🥈 accuracy-turbo:     ~69s  (+15% slower, much higher accuracy)
-🥉 NCA Toolkit:        ~85s  (+42% slower, much lower accuracy)
+🥉 OpenAI Whisper base: ~85s  (+42% slower, much lower accuracy)
 ❌ accuracy (GPU):     ~184s (+207% slower, unreliable)
 ```
 
@@ -67,7 +67,7 @@ This guide provides data-driven recommendations for configuring Sync Scribe Stud
 ```
 🥇 accuracy-turbo:  ⭐⭐⭐⭐⭐  (Best formal language)
 🥈 speed:           ⭐⭐⭐⭐     (Good, more casual)
-🥉 NCA Toolkit:     ⭐⭐         (Significant errors)
+🥉 OpenAI Whisper base: ⭐⭐         (Significant errors)
 ❌ accuracy:        ⭐           (Repetition issues)
 ```
 
@@ -79,7 +79,7 @@ This guide provides data-driven recommendations for configuring Sync Scribe Stud
 ```env
 ASR_PROFILE=accuracy-turbo
 ASR_MODEL_ID=large-v3-turbo
-ASR_DEVICE=cuda
+ASR_DEVICE=auto
 ASR_COMPUTE_TYPE=float16
 ENABLE_FASTER_WHISPER=true
 ```
@@ -88,7 +88,7 @@ ENABLE_FASTER_WHISPER=true
 ```env
 ASR_PROFILE=speed
 ASR_MODEL_ID=small
-ASR_DEVICE=cuda
+ASR_DEVICE=auto
 ASR_COMPUTE_TYPE=float16
 ENABLE_FASTER_WHISPER=true
 ```

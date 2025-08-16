@@ -101,14 +101,14 @@ docker run -d -p 8080:8080 \
   bmurrtech/sync-scribe-studio-api:latest
 ```
 
-**Accuracy Profile (Maximum Quality):**
+**Accuracy Profile (Not Recommended - Use Accuracy-Turbo Instead):**
 ```bash
-# Maximum fidelity - whisper-large-v3 with extensive search
-docker run -d -p 8080:8080 --gpus all \
-  -e API_KEY=your_secure_api_key_here \
-  -e ASR_DEVICE=auto \
-  -e ASR_PROFILE=accuracy \
-  bmurrtech/sync-scribe-studio-api:gpu
+# Note: This profile has glitchy transcripts - use accuracy-turbo instead
+# docker run -d -p 8080:8080 --gpus all \
+#   -e API_KEY=your_secure_api_key_here \
+#   -e ASR_DEVICE=auto \
+#   -e ASR_PROFILE=accuracy \
+#   bmurrtech/sync-scribe-studio-api:gpu
 ```
 
 **Accuracy-Turbo Profile (Best of Both Worlds):**
@@ -288,7 +288,7 @@ docker build -t bmurrtech/sync-scribe-studio-api:latest .
 ## 📚 Additional Resources
 
 ### Performance & Optimization
-- **[📊 Performance Analysis](./docs/performance-analysis.md)** - Complete 42-minute benchmark data, accuracy comparison vs NCA Toolkit
+- **[📊 Performance Analysis](./docs/performance-analysis.md)** - Complete 42-minute benchmark data, accuracy comparison vs OpenAI Whisper base
 - **[🏆 Optimal Configurations](./docs/optimal-configurations.md)** - Data-driven recommendations for different use cases and hardware
 
 ### Configuration & Setup
@@ -337,7 +337,17 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## Attribution
 
-This project is based on concepts from Stephen G. Pope's **No-Code Architect Tool Kit** but is an independent implementation and is not affiliated with or endorsed by Stephen G. Pope or his original work.
+Thanks to the original creators and maintainers of the open-source and permissively licensed software that makes Sync Scribe Studio possible:
+
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Media downloading and extraction
+- **[FFmpeg](https://github.com/FFmpeg/FFmpeg)** - Comprehensive media processing framework
+- **[OpenAI Whisper](https://github.com/openai/whisper)** - Robust speech recognition via large-scale weak supervision
+- **[faster-whisper](https://github.com/SYSTRAN/faster-whisper)** - Fast inference engine for Whisper models
+- **[CTranslate2](https://github.com/OpenNMT/CTranslate2)** - Fast inference engine for Transformer models
+- **[no-code-architects-toolkit](https://github.com/stephengpope/no-code-architects-toolkit)** by Stephen G. Pope - Original concept inspiration
+- **[Playwright](https://github.com/microsoft/playwright)** - Web testing and automation framework
+
+This project is an independent implementation and is not affiliated with or endorsed by any of the original projects or their maintainers.
 
 ## Disclaimer
 
