@@ -12,6 +12,42 @@
 
 📊 **[Complete Performance Analysis](docs/performance-analysis.md)** | 🏆 **[Optimal Configurations](docs/optimal-configurations.md)**
 
+## 🗺️ **Feature Roadmap**
+
+### ✅ **Available Now**
+```
+🎯 Superior ASR Transcription     🎵 Audio/Video Processing
+🎬 Video Captioning               ☁️  Cloud Storage Integration
+🖼️  Web Screenshots               🐍 Python Code Execution
+⚙️  FFmpeg Integration            🔐 Enterprise Security
+📊 Performance Profiles          🚀 Docker Hub Images
+```
+
+### 🚧 **In Development**
+```
+🖼️  Self-Hosted Image Generation
+   ├─ FLUX.1 [dev] model integration
+   ├─ LoRA fine-tuning support
+   └─ Custom prompt optimization
+
+🗣️  Text-to-Speech (TTS)
+   ├─ Kokoro TTS (82M parameters)
+   ├─ Open-weight model support
+   └─ Multi-language voice synthesis
+
+🎬 Image & Text to Video
+   ├─ img2vid generation (Wan v2.2-a14b)
+   ├─ txt2vid capabilities
+   └─ Self-hostable open-source models
+```
+
+### 🔮 **Future Enhancements**
+```
+🎨 Advanced Media AI            🌐 Multi-Modal Processing
+🔊 Real-time Audio Processing   📱 Mobile SDK Support
+🤖 Custom Model Fine-tuning     🔄 Workflow Automation
+```
+
 ## 🚀 Core Features
 
 ### 🎵 Media Processing
