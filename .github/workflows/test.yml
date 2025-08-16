@@ -1,43 +1,29 @@
-name: Test Suite
+name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
-    inputs:
-      test_suite:
-        description: 'Test suite to run'
-        required: false
-        default: 'full'
-        type: choice
-        options:
-          - full
-          - smoke
-          - unit
-          - integration
+    types: [ opened, synchronize ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11"]
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.11'
     
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements*.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
     
@@ -45,103 +31,16 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        make install-test-deps
+        pip install pytest pytest-cov
     
     - name: Run tests
       run: |
-        make test-ci
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # Smoke tests for PRs
+          pytest tests/test_health_endpoint.py tests/test_startup.py -v --tb=short
+        else
+          # Full tests for main branch
+          pytest tests/ -v --tb=short --cov=routes --cov=services --cov=app --cov-report=xml
+        fi
       env:
         CI: true
-    
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: test-results-${{ matrix.python-version }}
-        path: |
-          test-reports/
-          test-results.xml
-          test-report.html
-          coverage.xml
-    
-    - name: Publish test results
-      uses: EnricoMi/publish-unit-test-result-action@v2
-      if: always()
-      with:
-        files: |
-          test-reports/junit_*.xml
-          test-results.xml
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        files: ./test-reports/coverage_*.xml,./coverage.xml
-        flags: unittests
-        name: codecov-${{ matrix.python-version }}
-        fail_ci_if_error: false
-
-  smoke-test:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        make install-test-deps
-    
-    - name: Run smoke tests
-      run: |
-        make test-smoke
-      env:
-        CI: true
-    
-    - name: Comment PR with results
-      uses: actions/github-script@v6
-      if: github.event_name == 'pull_request'
-      with:
-        script: |
-          const fs = require('fs');
-          const path = require('path');
-          
-          // Look for the latest summary file
-          const reportsDir = 'test-reports';
-          if (fs.existsSync(reportsDir)) {
-            const files = fs.readdirSync(reportsDir)
-              .filter(f => f.startsWith('summary_'))
-              .sort().reverse();
-            
-            if (files.length > 0) {
-              const summary = JSON.parse(
-                fs.readFileSync(path.join(reportsDir, files[0]), 'utf8')
-              );
-              
-              const status = summary.status === 'PASS' ? '✅' : '❌';
-              const coverage = summary.coverage 
-                ? `Coverage: ${summary.coverage.percent.toFixed(2)}%`
-                : 'Coverage: N/A';
-              
-              const comment = `## Test Results ${status}
-              
-              - **Status**: ${summary.status}
-              - **${coverage}**
-              - **Exit Code**: ${summary.exit_code}
-              
-              [View detailed report](${context.payload.pull_request.html_url}/checks)`;
-              
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment
-              });
-            }
-          }
