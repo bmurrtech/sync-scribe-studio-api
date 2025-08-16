@@ -1,7 +1,7 @@
 # Build arguments for CPU-only or GPU variant
 # Set to 'gpu' for production builds that support both GPU and CPU
 ARG BUILD_VARIANT=gpu
-ARG CUDA_VERSION=12.1.0
+ARG CUDA_VERSION=12.2.2
 ARG CUDNN_VERSION=8
 
 # Base image - use NVIDIA CUDA runtime for GPU variant, or python:3.9-slim for CPU
@@ -212,8 +212,8 @@ RUN apt-get update && \
 # Install CTranslate2 with appropriate CUDA support for GPU variant
 # For CPU variant, standard ctranslate2 is already in requirements.txt
 RUN if [ "${BUILD_VARIANT}" = "gpu" ]; then \
-        # Install CUDA 12.1 compatible CT2 (version 4.4.0 supports CUDA 12)
-        python3 -m pip install --no-cache-dir ctranslate2==4.4.0; \
+        # Install CUDA 12.2+ compatible CT2 (version 4.6.0 supports CUDA 12+)
+        python3 -m pip install --no-cache-dir ctranslate2==4.6.0; \
     fi
 
 # Create the appuser 

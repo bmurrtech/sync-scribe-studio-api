@@ -2,8 +2,8 @@ Flask
 Werkzeug
 requests
 ffmpeg-python
-faster-whisper==1.*
-ctranslate2==4.4.0
+faster-whisper==1.2.0
+ctranslate2==4.6.0
 openai-whisper
 huggingface_hub[hf-transfer]
 gunicorn
