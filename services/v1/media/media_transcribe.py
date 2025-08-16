@@ -53,16 +53,30 @@ def _map_faster_whisper_segment(fw_segment):
 # Helper function to transcribe using faster-whisper
 def _transcribe_with_faster_whisper(model, audio_file, **kwargs):
     """Transcribe using faster-whisper and return OpenAI-compatible result."""
-    # Extract parameters compatible with faster-whisper
+    # Extract parameters compatible with faster-whisper with optimized defaults
     fw_params = {
-        'beam_size': kwargs.get('beam_size', 5),
+        'beam_size': kwargs.get('beam_size', 1),  # Reduced for speed (5 -> 1)
         'language': kwargs.get('language', None),
         'task': kwargs.get('task', 'transcribe'),
         'word_timestamps': kwargs.get('word_timestamps', False),
+        # Performance optimizations
+        'vad_filter': kwargs.get('vad_filter', True),  # Skip silent segments
+        'vad_parameters': kwargs.get('vad_parameters', {
+            'min_silence_duration_ms': 500,  # Minimum silence duration to split
+            'speech_pad_ms': 400  # Padding around speech segments
+        }),
+        'temperature': kwargs.get('temperature', 0.0),  # Deterministic output for speed
+        'compression_ratio_threshold': kwargs.get('compression_ratio_threshold', 2.4),  # Detect repetition
+        'log_prob_threshold': kwargs.get('log_prob_threshold', -1.0),  # Quality threshold
+        'no_speech_threshold': kwargs.get('no_speech_threshold', 0.6),  # Silence detection
+        'condition_on_previous_text': kwargs.get('condition_on_previous_text', True),  # Context awareness
     }
     
     # Remove None values
     fw_params = {k: v for k, v in fw_params.items() if v is not None}
+    
+    # Log optimization settings for monitoring
+    logger.info(f"Faster-Whisper optimizations: beam_size={fw_params['beam_size']}, vad_filter={fw_params.get('vad_filter')}, temperature={fw_params.get('temperature')}")
     
     # Transcribe with faster-whisper
     segments_generator, info = model.transcribe(audio_file, **fw_params)

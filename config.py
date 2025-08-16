@@ -39,14 +39,15 @@ ENABLE_OPENAI_WHISPER = os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower()
 
 # Faster-Whisper ASR Settings
 # Optimized defaults based on CPU vs GPU performance best practices
-ASR_MODEL_ID = os.environ.get('ASR_MODEL_ID', 'openai/whisper-small')  # Better accuracy/performance balance
+ASR_MODEL_ID = os.environ.get('ASR_MODEL_ID', 'openai/whisper-small')  # Better accuracy/performance balance than base
 ASR_DEVICE = os.environ.get('ASR_DEVICE', 'auto')  # Options: 'cpu', 'cuda', 'auto'
 ASR_COMPUTE_TYPE = os.environ.get('ASR_COMPUTE_TYPE', 'auto')  # Options: 'int8', 'int8_float32', 'float16', 'float32', 'auto'
-ASR_BEAM_SIZE = int(os.environ.get('ASR_BEAM_SIZE', '5'))  # Beam search width
+ASR_BEAM_SIZE = int(os.environ.get('ASR_BEAM_SIZE', '1'))  # Reduced from 5 to 1 for speed optimization
 
-# Batch size: optimized per device (4 for CPU, 32 for GPU)
-_default_batch_size = '4' if ASR_DEVICE == 'cpu' else '16' if ASR_DEVICE != 'auto' else '8'  # Conservative auto default
+# Performance-optimized batch sizes and threading
+_default_batch_size = '8' if ASR_DEVICE == 'cpu' else '16' if ASR_DEVICE != 'auto' else '12'  # Increased for better GPU utilization
 ASR_BATCH_SIZE = int(os.environ.get('ASR_BATCH_SIZE', _default_batch_size))  # Batch size for processing
+ASR_NUM_WORKERS = int(os.environ.get('ASR_NUM_WORKERS', '2'))  # Audio loading workers (CPU threads)
 ASR_CACHE_DIR = os.environ.get('ASR_CACHE_DIR', os.path.join(LOCAL_STORAGE_PATH, 'asr_cache'))
 
 def validate_env_vars(provider):
