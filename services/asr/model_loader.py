@@ -306,6 +306,26 @@ def load_model(force_reload: bool = False) -> Optional['WhisperModel']:
         load_start_time = time.time()
         
         try:
+            # Clean up any legacy/corrupted cache directories that might cause RuntimeError
+            legacy_cache_patterns = [
+                cache_dir / "models--openai--whisper-base",
+                cache_dir / "models--openai--whisper-small", 
+                cache_dir / "models--openai--whisper-medium",
+                cache_dir / "models--openai--whisper-large",
+                cache_dir / "models--openai--whisper-large-v2",
+                cache_dir / "models--openai--whisper-large-v3",
+                cache_dir / "models--openai--whisper-large-v3-turbo",
+            ]
+            
+            for legacy_path in legacy_cache_patterns:
+                if legacy_path.exists() and legacy_path.is_dir():
+                    try:
+                        import shutil
+                        logger.info(f"Cleaning up legacy cache directory: {legacy_path}")
+                        shutil.rmtree(legacy_path)
+                    except Exception as cleanup_error:
+                        logger.warning(f"Could not clean up legacy cache {legacy_path}: {cleanup_error}")
+            
             # For native Faster-Whisper model names, use a separate cache directory
             # to avoid conflicts with Hugging Face model cache structure
             if model_name in ['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3', 'large-v3-turbo']:
