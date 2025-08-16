@@ -4,24 +4,53 @@ A comprehensive, self-hosted media processing and transcription platform that el
 
 ## Quick Start
 
-### 🖥️ **CPU Deployment (Default)**
-| Variable Name | Value |
-|---------------|-------|
-| `API_KEY` | `your_secure_api_key_here` |
+### 🖥️ **CPU Deployment (Speed Optimized)**
+| Variable Name | Value | Notes |
+|---------------|-------|-------|
+| `API_KEY` | `your_secure_api_key_here` | Required |
+| `ASR_MODEL_ID` | `openai/whisper-small` | Default (auto-optimized) |
+| `ASR_COMPUTE_TYPE` | `int8` | CPU performance optimized |
 
 ```bash
 docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here bmurrtech/sync-scribe-studio:latest
 ```
 
-### 🚀 **GPU Deployment (Optional)**
-| Variable Name | Value |
-|---------------|-------|
-| `API_KEY` | `your_secure_api_key_here` |
-| `ASR_DEVICE` | `auto` |
+### 🚀 **GPU Deployment (Balanced Performance)**
+| Variable Name | Value | Notes |
+|---------------|-------|-------|
+| `API_KEY` | `your_secure_api_key_here` | Required |
+| `ASR_DEVICE` | `auto` | Auto-detects CUDA |
+| `ASR_MODEL_ID` | `openai/whisper-large-v3-turbo` | Default for GPU |
+| `ASR_COMPUTE_TYPE` | `float16` | GPU performance optimized |
 
 ```bash
 docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR_DEVICE=auto bmurrtech/sync-scribe-studio:gpu
 ```
+
+### ⚡ **Performance Configurations**
+
+**CPU Speed Priority:**
+```bash
+# Fastest CPU transcription (small model + int8)
+docker run -d -p 8080:8080 \
+  -e API_KEY=your_secure_api_key_here \
+  -e ASR_MODEL_ID=openai/whisper-small \
+  -e ASR_COMPUTE_TYPE=int8 \
+  bmurrtech/sync-scribe-studio:latest
+```
+
+**GPU Max Accuracy:**
+```bash
+# Best quality transcription (large-v3 + float16)
+docker run -d -p 8080:8080 --gpus all \
+  -e API_KEY=your_secure_api_key_here \
+  -e ASR_DEVICE=cuda \
+  -e ASR_MODEL_ID=openai/whisper-large-v3 \
+  -e ASR_COMPUTE_TYPE=float16 \
+  bmurrtech/sync-scribe-studio:gpu
+```
+
+> **📊 Advanced Performance Tuning**: For detailed ASR profiles, model comparisons, and performance optimization, see [ASR Performance Profiles](docs/ASR_PERFORMANCE_PROFILES.md).
 
 ### ✅ **Test Your Deployment**
 ```bash

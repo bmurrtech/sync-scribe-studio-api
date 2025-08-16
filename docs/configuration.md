@@ -47,10 +47,18 @@ Comprehensive configuration options for Sync Scribe Studio API with user-friendl
 | `MAX_QUEUE_LENGTH` | `20` | `10-200+` | Concurrent task limit |
 | `LOCAL_STORAGE_PATH` | `/tmp` | Any path | Temporary file directory |
 
-### 🎤 **ASR (Speech Recognition) Advanced Settings**
+### 🎤 **ASR (Speech Recognition) Configuration**
+
+> **📊 For detailed model comparisons, performance profiles, and diminishing returns analysis, see [ASR Performance Profiles](ASR_PERFORMANCE_PROFILES.md).**
+
+**Recommended Defaults:**
+- **CPU**: `openai/whisper-small` with `compute_type=int8`
+- **GPU**: `openai/whisper-large-v3-turbo` with `compute_type=float16`
+
 | Variable Name | Default | Options | Purpose |
 |---------------|---------|---------|----------|
-| `ASR_MODEL_ID` | `openai/whisper-small` | `tiny`, `base`, `small`, `medium`, `large-v3` | Model size selection |
+| `ASR_PROFILE` | `balanced` | `speed`, `balanced`, `accuracy` | Pre-configured performance profiles |
+| `ASR_MODEL_ID` | `openai/whisper-small` (CPU) / `openai/whisper-large-v3-turbo` (GPU) | `tiny`, `base`, `small`, `large-v3-turbo`, `large-v3` | Model size selection |
 | `ASR_DEVICE` | `auto` | `cpu`, `cuda`, `auto` | Processing device |
 | `ASR_COMPUTE_TYPE` | `auto` | `int8`, `float16`, `float32`, `auto` | Model precision |
 | `ASR_BEAM_SIZE` | `5` | `1-10` | Search width for decoding |
@@ -61,6 +69,8 @@ Comprehensive configuration options for Sync Scribe Studio API with user-friendl
 | `ENABLE_MODEL_WARM_UP` | `true` | `true`, `false` | Preload models at startup |
 | `SKIP_MODEL_WARMUP` | `false` | `true`, `false` | Skip model preloading |
 | `ENABLE_OPENAI_WHISPER` | `false` | `true`, `false` | Use legacy OpenAI Whisper |
+
+> **⚠️ Note**: `medium` model is **not recommended** due to poor speed/accuracy trade-offs. Skip directly from `small` to `large-v3-turbo` or `large-v3`.
 
 ---
 
@@ -153,7 +163,7 @@ ALLOWED_ORIGINS=https://yourdomain.com
 
 ### GPU-Optimized Configuration
 ```bash
-# GPU deployment with optimization
+# GPU deployment with balanced performance (recommended)
 API_KEY=your_secure_api_key_here
 S3_ENDPOINT_URL=https://s3.amazonaws.com
 S3_ACCESS_KEY=your_access_key
@@ -162,10 +172,10 @@ S3_BUCKET_NAME=your_bucket
 S3_REGION=us-east-1
 
 # GPU-specific settings
-ASR_DEVICE=cuda                     # Force CUDA usage
-ASR_COMPUTE_TYPE=float16           # Balance of speed/accuracy
-ASR_BATCH_SIZE=32                  # Larger batches for GPU
-ASR_MODEL_ID=openai/whisper-medium # Larger model for GPU
+ASR_DEVICE=cuda                                # Force CUDA usage
+ASR_COMPUTE_TYPE=float16                      # Balance of speed/accuracy
+ASR_BATCH_SIZE=32                             # Larger batches for GPU
+ASR_MODEL_ID=openai/whisper-large-v3-turbo   # Recommended GPU model
 
 # Performance tuning for GPU
 GUNICORN_WORKERS=4                 # Fewer workers for GPU memory
@@ -201,10 +211,10 @@ ASR_BATCH_SIZE=auto                # Chooses optimal batch size
 ### Manual GPU Configuration
 ```bash
 # Explicit GPU settings
-ASR_DEVICE=cuda                    # Force CUDA usage
-ASR_COMPUTE_TYPE=float16          # Balance of speed/accuracy
-ASR_BATCH_SIZE=32                 # Larger batches for GPU
-ASR_MODEL_ID=openai/whisper-medium # Larger model for GPU
+ASR_DEVICE=cuda                                # Force CUDA usage
+ASR_COMPUTE_TYPE=float16                      # Balance of speed/accuracy
+ASR_BATCH_SIZE=32                             # Larger batches for GPU
+ASR_MODEL_ID=openai/whisper-large-v3-turbo   # Recommended GPU model
 ```
 
 ### Memory-Conscious GPU Settings
