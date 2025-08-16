@@ -42,13 +42,13 @@ ENABLE_OPENAI_WHISPER = os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower()
 ASR_PROFILE = os.environ.get('ASR_PROFILE', 'balanced').lower()
 
 # Profile-based configurations
+# Note: temperature_increment_on_fallback is not supported by faster-whisper
 PROFILE_CONFIGS = {
     'speed': {
         'model_id': 'openai/whisper-small',
         'beam_size': 1,
         'best_of': 1,
         'temperature': 0.0,
-        'temperature_increment_on_fallback': 0.0,
         'batch_size_cpu': 4,
         'batch_size_gpu': 16,
         'vad_min_silence_ms': 300,  # Aggressive silence detection
@@ -59,7 +59,6 @@ PROFILE_CONFIGS = {
         'beam_size': 3,
         'best_of': 5,
         'temperature': 0.0,
-        'temperature_increment_on_fallback': 0.2,
         'batch_size_cpu': 2,
         'batch_size_gpu': 8,  # Conservative for large model VRAM usage
         'vad_min_silence_ms': 500,  # Conservative silence detection
@@ -70,7 +69,6 @@ PROFILE_CONFIGS = {
         'beam_size': 2,  # Slightly reduced for speed
         'best_of': 3,  # Reduced for faster processing
         'temperature': 0.0,
-        'temperature_increment_on_fallback': 0.1,
         'batch_size_cpu': 3,
         'batch_size_gpu': 16,  # Higher batch for speed
         'vad_min_silence_ms': 350,  # Faster VAD processing
@@ -81,7 +79,6 @@ PROFILE_CONFIGS = {
         'beam_size': 2,  # Small increase from beam=1 for better quality
         'best_of': 2,
         'temperature': 0.0,
-        'temperature_increment_on_fallback': 0.1,
         'batch_size_cpu': 4,
         'batch_size_gpu': 12,
         'vad_min_silence_ms': 400,  # Balanced silence detection
@@ -99,7 +96,7 @@ ASR_COMPUTE_TYPE = os.environ.get('ASR_COMPUTE_TYPE', 'auto')  # Options: 'int8'
 ASR_BEAM_SIZE = int(os.environ.get('ASR_BEAM_SIZE', str(_profile_config['beam_size'])))
 ASR_BEST_OF = int(os.environ.get('ASR_BEST_OF', str(_profile_config['best_of'])))
 ASR_TEMPERATURE = float(os.environ.get('ASR_TEMPERATURE', str(_profile_config['temperature'])))
-ASR_TEMPERATURE_INCREMENT = float(os.environ.get('ASR_TEMPERATURE_INCREMENT_ON_FALLBACK', str(_profile_config['temperature_increment_on_fallback'])))
+# Note: ASR_TEMPERATURE_INCREMENT not used with faster-whisper
 
 # Performance-optimized batch sizes and threading based on profile
 _device_type = ASR_DEVICE if ASR_DEVICE != 'auto' else 'gpu'  # Assume GPU for auto
