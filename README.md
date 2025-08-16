@@ -11,7 +11,7 @@ A comprehensive, self-hosted media processing and transcription platform that el
 | `ASR_PROFILE` | `balanced` | Default (whisper-small, auto-optimized) |
 
 ```bash
-docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here bmurrtech/sync-scribe-studio:latest
+docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here bmurrtech/sync-scribe-studio-api:latest
 ```
 
 ### 🚀 **GPU Deployment (Default Balanced Profile)**
@@ -22,10 +22,19 @@ docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here bmurrtech/sync-sc
 | `ASR_PROFILE` | `balanced` | Default (whisper-small, auto-optimized) |
 
 ```bash
-docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR_DEVICE=auto bmurrtech/sync-scribe-studio:gpu
+docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR_DEVICE=auto bmurrtech/sync-scribe-studio-api:gpu
 ```
 
 ### ⚡ **Performance Profile Configurations**
+
+| Profile | Model | Use Case | Speed (5:48 audio) | System Requirements | Min Variables |
+|---------|-------|----------|---------------------|---------------------|---------------|
+| **Speed** | whisper-small | Real-time, high-volume | Sub-2 seconds | 2GB RAM | `ASR_PROFILE=speed` |
+| **Balanced** | whisper-small | General purpose (DEFAULT) | 2-3 seconds | 4GB RAM | None required |
+| **Accuracy** | whisper-large-v3-turbo | Professional quality | 4-5 seconds | 6-8GB VRAM + GPU | `ASR_PROFILE=accuracy` + GPU |
+| **Accuracy-Turbo** | whisper-large-v3-turbo | Production speed + quality | 3-4 seconds | 6-8GB VRAM + GPU | `ASR_PROFILE=accuracy-turbo` + GPU |
+
+> **💾 Hardware Requirements**: Speed/Balanced profiles work on modest CPU hardware. Accuracy profiles require NVIDIA GPU with 6-8GB VRAM. For detailed system specs, GPU compatibility, and performance benchmarks, see [ASR Performance Profiles](docs/ASR_PERFORMANCE_PROFILES.md).
 
 **Speed Profile (Maximum Throughput):**
 ```bash
@@ -33,26 +42,35 @@ docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR
 docker run -d -p 8080:8080 \
   -e API_KEY=your_secure_api_key_here \
   -e ASR_PROFILE=speed \
-  bmurrtech/sync-scribe-studio:latest
+  bmurrtech/sync-scribe-studio-api:latest
 ```
 
-**Balanced Profile (Default - Good Speed/Accuracy):**
+**Balanced Profile (Default - General Purpose):**
 ```bash
-# Balanced transcription - whisper-small with beam search
+# Balanced transcription - whisper-small with beam search (DEFAULT)
 docker run -d -p 8080:8080 \
   -e API_KEY=your_secure_api_key_here \
-  -e ASR_PROFILE=balanced \
-  bmurrtech/sync-scribe-studio:latest
+  bmurrtech/sync-scribe-studio-api:latest
 ```
 
 **Accuracy Profile (Maximum Quality):**
 ```bash
-# Best quality transcription - large-v3 model with extensive search
+# Best quality - large-v3-turbo with extensive search
 docker run -d -p 8080:8080 --gpus all \
   -e API_KEY=your_secure_api_key_here \
-  -e ASR_DEVICE=cuda \
+  -e ASR_DEVICE=auto \
   -e ASR_PROFILE=accuracy \
-  bmurrtech/sync-scribe-studio:gpu
+  bmurrtech/sync-scribe-studio-api:gpu
+```
+
+**Accuracy-Turbo Profile (Best of Both Worlds):**
+```bash
+# Large model accuracy at 2-3x speed - ideal for production
+docker run -d -p 8080:8080 --gpus all \
+  -e API_KEY=your_secure_api_key_here \
+  -e ASR_DEVICE=auto \
+  -e ASR_PROFILE=accuracy-turbo \
+  bmurrtech/sync-scribe-studio-api:gpu
 ```
 
 > **📊 Advanced Performance Tuning**: For detailed ASR profiles, deterministic decoding, VAD optimization, and performance analysis, see [ASR Performance Profiles](docs/ASR_PERFORMANCE_PROFILES.md).
@@ -205,34 +223,72 @@ Each endpoint is supported by robust payload validation and detailed API documen
 
 **Quick Deploy - CPU:**
 ```bash
-docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here --name sync-scribe-cpu bmurrtech/sync-scribe-studio:latest
+docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here --name sync-scribe-cpu bmurrtech/sync-scribe-studio-api:latest
 ```
 
 **Quick Deploy - GPU:**
 ```bash
-docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR_DEVICE=auto --name sync-scribe-gpu bmurrtech/sync-scribe-studio:gpu
+docker run -d -p 8080:8080 --gpus all -e API_KEY=your_secure_api_key_here -e ASR_DEVICE=auto --name sync-scribe-gpu bmurrtech/sync-scribe-studio-api:gpu
 ```
 
 **Apple Silicon (M1/M2/M3):**
 ```bash
-docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here --platform linux/arm64 --name sync-scribe-cpu bmurrtech/sync-scribe-studio:latest
+docker run -d -p 8080:8080 -e API_KEY=your_secure_api_key_here --platform linux/arm64 --name sync-scribe-cpu bmurrtech/sync-scribe-studio-api:arm64
 ```
 
 > **📚 Complete Local Guide**: For platform compatibility, CUDA setup, development mode, troubleshooting, and advanced configurations, see [Local Deployment Guide](docs/local-deployment.md).
 
-### ☁️ **Cloud Deployment**
+### 🐳 **Docker Hub Images**
 
-#### Pull from Docker Hub
+**Official Docker Hub Repository**: [bmurrtech/sync-scribe-studio-api](https://hub.docker.com/repository/docker/bmurrtech/sync-scribe-studio-api/general)
 
+#### Available Tags & Architecture Guide
+
+| Tag | Architecture | Best For | Use Case |
+|-----|--------------|----------|----------|
+| `latest` | amd64 | **Production (Recommended)** | Stable, broadest compatibility, Cloud Run |
+| `gpu` | amd64 + CUDA | **GPU Production** | NVIDIA GPU acceleration |
+| `arm64` | arm64 | **Apple Silicon & ARM** | M1/M2/M3 Macs, ARM64 servers |
+| `vX.Y.Z-*` | Various | **Testing Only** | Temporary snapshots, auto-cleaned |
+
+#### Pull Commands
+
+**Stable Production (Recommended):**
 ```bash
-docker pull bmurrtech/sync-scribe-studio:latest
+docker pull bmurrtech/sync-scribe-studio-api:latest
 ```
 
-#### Or Build Locally
+**GPU Production:**
+```bash
+docker pull bmurrtech/sync-scribe-studio-api:gpu
+```
+
+**Apple Silicon:**
+```bash
+docker pull bmurrtech/sync-scribe-studio-api:arm64
+```
+
+#### Build Locally (Alternative)
 
 ```bash
-docker build -t bmurrtech/sync-scribe-studio:latest .
+docker build -t bmurrtech/sync-scribe-studio-api:latest .
 ```
+
+#### 🏷️ **Tagging Policy**
+
+**Stable Tags (Long-term):**
+- `latest` → Most stable production build (amd64, maximum compatibility)
+- `gpu`, `arm64` → Rolling architecture-specific tags (only when needed)
+
+**Development Tags (Auto-cleaned):**  
+- `vX.Y.Z-*` → Temporary testing snapshots, deleted after superseding
+
+**Best Practices:**
+- **Stable deployments**: Use `latest` for broadest compatibility  
+- **GPU acceleration**: Use `gpu` only when CUDA is required
+- **Apple Silicon**: Use `arm64` for M1/M2/M3 Macs and ARM64 servers
+- **Reproducible builds**: Pin by digest for exact builds: `@sha256:...`
+- **Avoid development tags**: `vX.Y.Z-*` are temporary and may be deleted
 
 ## Configuration
 

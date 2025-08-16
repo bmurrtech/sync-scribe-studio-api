@@ -55,15 +55,15 @@ PROFILE_CONFIGS = {
         'description': 'Optimized for speed and real-time processing'
     },
     'accuracy': {
-        'model_id': 'openai/whisper-large-v3-turbo',  # Use turbo for production accuracy
+        'model_id': 'openai/whisper-large-v3',  # Use full large-v3 for maximum fidelity
         'beam_size': 3,
         'best_of': 5,
         'temperature': 0.0,
         'temperature_increment_on_fallback': 0.2,
         'batch_size_cpu': 2,
-        'batch_size_gpu': 12,  # Turbo is more VRAM efficient
+        'batch_size_gpu': 8,  # Conservative for large model VRAM usage
         'vad_min_silence_ms': 500,  # Conservative silence detection
-        'description': 'High accuracy with optimized speed using large-v3-turbo'
+        'description': 'Maximum fidelity using full whisper-large-v3, requires 10-12GB VRAM'
     },
     'accuracy-turbo': {
         'model_id': 'openai/whisper-large-v3-turbo',  # Fast + accurate

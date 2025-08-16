@@ -51,19 +51,19 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 **Expected Performance**: Good speed with improved accuracy over speed profile, suitable for most use cases.
 
 ### Accuracy Profile (`ASR_PROFILE=accuracy`)
-**High accuracy with production-optimized speed**
+**Maximum fidelity transcription - highest quality available**
 
-- **Model**: whisper-large-v3-turbo (1550M parameters, optimized architecture)
+- **Model**: whisper-large-v3 (1550M parameters, full model for maximum fidelity)
 - **Compute Type**: `float16`
 - **Beam Size**: 3 (wider beam search)
 - **Best Of**: 5 (multiple generations)
 - **Temperature**: 0.0 (deterministic start)
 - **Temperature Increment**: 0.2 (higher fallback for quality)
 - **VAD Silence**: 500ms (conservative silence detection)
-- **Batch Size**: CPU: 2, GPU: 12 (turbo is more VRAM efficient)
-- **Best For**: Professional transcription, medical/legal content, broadcast quality, multilingual audio
+- **Batch Size**: CPU: 2, GPU: 8 (conservative for large model VRAM usage)
+- **Best For**: Critical transcription where fidelity is paramount, legal documents, medical dictation, broadcast archiving
 
-**Requirements**: 6-8GB VRAM (turbo model is much more efficient than standard large-v3).
+**Requirements**: 10-12GB VRAM for comfortable GPU processing, slower than turbo but highest possible accuracy.
 
 ### Accuracy-Turbo Profile (`ASR_PROFILE=accuracy-turbo`)
 **Maximum speed with large model accuracy - best of both worlds**
