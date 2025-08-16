@@ -307,11 +307,24 @@ def load_model(force_reload: bool = False) -> Optional['WhisperModel']:
         load_start_time = time.time()
         
         try:
+            # For native Faster-Whisper model names, use a separate cache directory
+            # to avoid conflicts with Hugging Face model cache structure
+            if model_name in ['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3', 'large-v3-turbo']:
+                # Use native Faster-Whisper cache directory
+                fw_cache_dir = Path(cache_dir) / "faster_whisper_models"
+                fw_cache_dir.mkdir(parents=True, exist_ok=True)
+                model_cache_dir = str(fw_cache_dir)
+                logger.info(f"Using Faster-Whisper native cache directory: {model_cache_dir}")
+            else:
+                # Use standard cache directory for custom/HF models
+                model_cache_dir = str(cache_dir)
+                logger.info(f"Using standard cache directory: {model_cache_dir}")
+            
             _model = WhisperModel(
                 model_name,
                 device=device,
                 compute_type=compute_type,
-                download_root=str(cache_dir),
+                download_root=model_cache_dir,
                 local_files_only=False,  # Allow downloading if not cached
                 num_workers=1,  # Number of workers for audio loading
             )
