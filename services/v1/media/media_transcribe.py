@@ -55,7 +55,7 @@ def _transcribe_with_faster_whisper(model, audio_file, **kwargs):
     """Transcribe using faster-whisper and return OpenAI-compatible result."""
     # Import configuration for profile-based defaults
     from config import (
-        ASR_BEAM_SIZE, ASR_BEST_OF, ASR_TEMPERATURE, ASR_TEMPERATURE_INCREMENT,
+        ASR_BEAM_SIZE, ASR_BEST_OF, ASR_TEMPERATURE,
         ASR_VAD_MIN_SILENCE_MS, ASR_PROFILE
     )
     
@@ -67,9 +67,9 @@ def _transcribe_with_faster_whisper(model, audio_file, **kwargs):
         'task': kwargs.get('task', 'transcribe'),
         'word_timestamps': kwargs.get('word_timestamps', False),
         
-        # Deterministic decoding settings (prevent temperature escalation)
+        # Deterministic decoding settings
         'temperature': kwargs.get('temperature', ASR_TEMPERATURE),
-        'temperature_increment_on_fallback': kwargs.get('temperature_increment_on_fallback', ASR_TEMPERATURE_INCREMENT),
+        # Note: faster-whisper doesn't support temperature_increment_on_fallback
         
         # Performance optimizations
         'vad_filter': kwargs.get('vad_filter', True),  # Skip silent segments
