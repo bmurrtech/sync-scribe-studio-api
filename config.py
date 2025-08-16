@@ -109,6 +109,14 @@ ASR_NUM_WORKERS = int(os.environ.get('ASR_NUM_WORKERS', '1'))  # Reduced to 1 fo
 ASR_VAD_MIN_SILENCE_MS = int(os.environ.get('ASR_VAD_MIN_SILENCE_MS', str(_profile_config['vad_min_silence_ms'])))
 ASR_CACHE_DIR = os.environ.get('ASR_CACHE_DIR', os.path.join(LOCAL_STORAGE_PATH, 'asr_cache'))
 
+# Image Generation Configuration
+# FLUX.1-dev with Optimum-Quanto FP8 + LoRA-by-URL
+IMG_GEN = os.environ.get('IMG_GEN', 'false').lower() == 'true'
+MAX_IMAGE_SIZE = 1024 * 1024  # 1024x1024 max resolution
+MAX_STEPS = 50  # Maximum inference steps
+IMAGE_CONCURRENCY = 1  # Serialize image generation on single H100
+WEIGHTS_DIR = "/runpod-volume/models/flux-dev"  # Network Volume model path
+
 def validate_env_vars(provider):
 
     """ Validate the necessary environment variables for the selected storage provider """
