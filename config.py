@@ -37,17 +37,67 @@ GCP_BUCKET_NAME = os.environ.get('GCP_BUCKET_NAME', '')
 # To use legacy OpenAI Whisper, explicitly set ENABLE_OPENAI_WHISPER=true
 ENABLE_OPENAI_WHISPER = os.environ.get('ENABLE_OPENAI_WHISPER', 'false').lower() == 'true'
 
-# Faster-Whisper ASR Settings
-# Optimized defaults based on CPU vs GPU performance best practices
-ASR_MODEL_ID = os.environ.get('ASR_MODEL_ID', 'openai/whisper-small')  # Better accuracy/performance balance than base
+# Performance Profile System
+# Options: 'speed', 'accuracy', 'balanced', 'custom'
+ASR_PROFILE = os.environ.get('ASR_PROFILE', 'balanced').lower()
+
+# Profile-based configurations
+PROFILE_CONFIGS = {
+    'speed': {
+        'model_id': 'openai/whisper-small',
+        'beam_size': 1,
+        'best_of': 1,
+        'temperature': 0.0,
+        'temperature_increment_on_fallback': 0.0,
+        'batch_size_cpu': 4,
+        'batch_size_gpu': 16,
+        'vad_min_silence_ms': 300,  # Aggressive silence detection
+        'description': 'Optimized for speed and real-time processing'
+    },
+    'accuracy': {
+        'model_id': 'openai/whisper-large-v3',  # Use large-v3 for best accuracy
+        'beam_size': 3,
+        'best_of': 5,
+        'temperature': 0.0,
+        'temperature_increment_on_fallback': 0.2,
+        'batch_size_cpu': 2,
+        'batch_size_gpu': 8,  # Conservative for large model VRAM usage
+        'vad_min_silence_ms': 500,  # Conservative silence detection
+        'description': 'Optimized for maximum accuracy, requires more VRAM'
+    },
+    'balanced': {
+        'model_id': 'openai/whisper-small',
+        'beam_size': 2,  # Small increase from beam=1 for better quality
+        'best_of': 2,
+        'temperature': 0.0,
+        'temperature_increment_on_fallback': 0.1,
+        'batch_size_cpu': 4,
+        'batch_size_gpu': 12,
+        'vad_min_silence_ms': 400,  # Balanced silence detection
+        'description': 'Good balance of speed and accuracy'
+    }
+}
+
+# Get profile configuration
+_profile_config = PROFILE_CONFIGS.get(ASR_PROFILE, PROFILE_CONFIGS['balanced'])
+
+# Faster-Whisper ASR Settings with profile-based defaults
+ASR_MODEL_ID = os.environ.get('ASR_MODEL_ID', _profile_config['model_id'])
 ASR_DEVICE = os.environ.get('ASR_DEVICE', 'auto')  # Options: 'cpu', 'cuda', 'auto'
 ASR_COMPUTE_TYPE = os.environ.get('ASR_COMPUTE_TYPE', 'auto')  # Options: 'int8', 'int8_float32', 'float16', 'float32', 'auto'
-ASR_BEAM_SIZE = int(os.environ.get('ASR_BEAM_SIZE', '1'))  # Reduced from 5 to 1 for speed optimization
+ASR_BEAM_SIZE = int(os.environ.get('ASR_BEAM_SIZE', str(_profile_config['beam_size'])))
+ASR_BEST_OF = int(os.environ.get('ASR_BEST_OF', str(_profile_config['best_of'])))
+ASR_TEMPERATURE = float(os.environ.get('ASR_TEMPERATURE', str(_profile_config['temperature'])))
+ASR_TEMPERATURE_INCREMENT = float(os.environ.get('ASR_TEMPERATURE_INCREMENT_ON_FALLBACK', str(_profile_config['temperature_increment_on_fallback'])))
 
-# Performance-optimized batch sizes and threading
-_default_batch_size = '8' if ASR_DEVICE == 'cpu' else '16' if ASR_DEVICE != 'auto' else '12'  # Increased for better GPU utilization
-ASR_BATCH_SIZE = int(os.environ.get('ASR_BATCH_SIZE', _default_batch_size))  # Batch size for processing
-ASR_NUM_WORKERS = int(os.environ.get('ASR_NUM_WORKERS', '2'))  # Audio loading workers (CPU threads)
+# Performance-optimized batch sizes and threading based on profile
+_device_type = ASR_DEVICE if ASR_DEVICE != 'auto' else 'gpu'  # Assume GPU for auto
+_default_batch_size = str(_profile_config[f'batch_size_cpu' if _device_type == 'cpu' else 'batch_size_gpu'])
+ASR_BATCH_SIZE = int(os.environ.get('ASR_BATCH_SIZE', _default_batch_size))
+ASR_NUM_WORKERS = int(os.environ.get('ASR_NUM_WORKERS', '1'))  # Reduced to 1 for better GPU utilization
+
+# VAD settings from profile
+ASR_VAD_MIN_SILENCE_MS = int(os.environ.get('ASR_VAD_MIN_SILENCE_MS', str(_profile_config['vad_min_silence_ms'])))
 ASR_CACHE_DIR = os.environ.get('ASR_CACHE_DIR', os.path.join(LOCAL_STORAGE_PATH, 'asr_cache'))
 
 def validate_env_vars(provider):

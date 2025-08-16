@@ -27,11 +27,17 @@ from config import (
     ASR_DEVICE,
     ASR_COMPUTE_TYPE,
     ASR_BEAM_SIZE,
+    ASR_BEST_OF,
+    ASR_TEMPERATURE,
+    ASR_TEMPERATURE_INCREMENT,
     ASR_BATCH_SIZE,
     ASR_NUM_WORKERS,
+    ASR_VAD_MIN_SILENCE_MS,
     ASR_CACHE_DIR,
     LOCAL_STORAGE_PATH,
-    ENABLE_OPENAI_WHISPER
+    ENABLE_OPENAI_WHISPER,
+    ASR_PROFILE,
+    PROFILE_CONFIGS
 )
 
 # Try to import faster-whisper with workarounds for library issues
@@ -224,6 +230,11 @@ def load_model(force_reload: bool = False) -> Optional['WhisperModel']:
         logger.info("=" * 60)
         logger.info("Initializing ASR Model Loader")
         logger.info("=" * 60)
+        
+        # Log profile information
+        profile_info = PROFILE_CONFIGS.get(ASR_PROFILE, PROFILE_CONFIGS['balanced'])
+        logger.info(f"ASR Performance Profile: {ASR_PROFILE.upper()}")
+        logger.info(f"Profile Description: {profile_info['description']}")
         
         # Record start time
         total_start_time = time.time()
