@@ -51,25 +51,40 @@ The Sync Scribe Studio API uses a comprehensive profile-based system with three 
 **Expected Performance**: Good speed with improved accuracy over speed profile, suitable for most use cases.
 
 ### Accuracy Profile (`ASR_PROFILE=accuracy`)
-**Maximum accuracy for critical transcription needs**
+**High accuracy with production-optimized speed**
 
-- **Model**: whisper-large-v3 (1550M parameters)
+- **Model**: whisper-large-v3-turbo (1550M parameters, optimized architecture)
 - **Compute Type**: `float16`
 - **Beam Size**: 3 (wider beam search)
 - **Best Of**: 5 (multiple generations)
 - **Temperature**: 0.0 (deterministic start)
 - **Temperature Increment**: 0.2 (higher fallback for quality)
 - **VAD Silence**: 500ms (conservative silence detection)
-- **Batch Size**: CPU: 2, GPU: 8 (conservative for large model)
+- **Batch Size**: CPU: 2, GPU: 12 (turbo is more VRAM efficient)
 - **Best For**: Professional transcription, medical/legal content, broadcast quality, multilingual audio
 
-**Requirements**: 12-16GB VRAM for comfortable GPU processing.
+**Requirements**: 6-8GB VRAM (turbo model is much more efficient than standard large-v3).
+
+### Accuracy-Turbo Profile (`ASR_PROFILE=accuracy-turbo`)
+**Maximum speed with large model accuracy - best of both worlds**
+
+- **Model**: whisper-large-v3-turbo (1550M parameters, optimized)
+- **Compute Type**: `float16`
+- **Beam Size**: 2 (optimized for speed)
+- **Best Of**: 3 (faster processing)
+- **Temperature**: 0.0 (deterministic start)
+- **Temperature Increment**: 0.1 (minimal fallback)
+- **VAD Silence**: 350ms (faster processing)
+- **Batch Size**: CPU: 3, GPU: 16 (higher throughput)
+- **Best For**: High-volume accurate transcription, production deployments requiring both speed and quality
+
+**Expected Performance**: Large model accuracy at 2-3x speed of standard large-v3, ideal for production workloads.
 
 ## Environment Variables
 
 ### Primary Configuration
 ```bash
-ASR_PROFILE=balanced  # Options: speed, balanced, accuracy
+ASR_PROFILE=balanced  # Options: speed, balanced, accuracy, accuracy-turbo
 ```
 
 ### Override Individual Settings (Optional)
@@ -115,6 +130,7 @@ Based on research insights for optimal speed vs quality balance:
 | **Speed** | 1 (greedy) | 1 | 0.0 (none) | 300ms | Maximum throughput |
 | **Balanced** | 2 | 2 | 0.1 (minimal) | 400ms | Speed/accuracy balance |
 | **Accuracy** | 3 | 5 | 0.2 (quality) | 500ms | Maximum quality |
+| **Accuracy-Turbo** | 2 | 3 | 0.1 (minimal) | 350ms | Speed + large model accuracy |
 
 ### Beam Search vs Speed
 - **beam_size=1** (greedy): Fastest, ~80-90% accuracy of beam search
