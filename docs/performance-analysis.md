@@ -25,6 +25,33 @@ The following table summarizes the performance of each tested configuration on a
 | **Faster-Whisper**| `balanced` | `small` | CPU | N/A | **FAILED (OOM)** | Failed on 42min audio. (Processed 4min audio in ~29s) |
 | **OpenAI Whisper** | N/A | `base` | GPU | ~85s | Success | **Lowest accuracy.** Noticeable errors ("Nogger", "hall of"). |
 
+## 2.1. Latest Benchmark Results
+
+**Run metadata**
+- Whisper-base (vanilla): Workflow completed in **25.16s**
+- Whisper-small + CT2 (profile: speed): Workflow completed in **35.53s**
+- Whisper-large-v3-turbo (profile: accuracy-turbo): Workflow completed in **8.09s**
+
+---
+
+| Section                     | Whisper-base (vanilla)                                       | Whisper-small + CT2 (speed)                                   | Whisper-large-v3-turbo (accuracy-turbo)                     | Notes on Accuracy |
+|-----------------------------|--------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------------------------------|-------------------|
+| Scripture heading           | "Matthew chapter 21 verses 12 through 17"                    | "Matthew 21-12-17"                                            | "Matthew chapter 21, verses 12 through 17"                  | Turbo and base both correct citation; small model loses detail. |
+| Money changers phrase       | "the tables of the money changes"                            | "the tables of the money changers"                            | "the tables of the money changers"                          | Small+CT2 & Turbo correct; base error ("changes"). |
+| Name (theologian)           | "Dan Doryan"                                                 | "Dan Doriani"                                                 | "Dan Doriani"                                               | Small+CT2 & Turbo correct; base misspells. |
+| Pronouns / attribution      | "We call Jesus's final entrance..."                          | "He called Jesus' final entrance..."                          | "We call Jesus' final entrance..."                          | Turbo mirrors base here (shift to "We"); small model preserves "He." |
+| Priests reference           | "…the priest to allow it"                                    | "…the priests who allowed it"                                 | "…the priests who allowed it"                               | Small+CT2 & Turbo correct; base ungrammatical. |
+| Hosanna phrase              | "Hosanna may God save us, to the Son of David"               | "Hosanna, may God save us, to the son of David"               | "Hosanna, may God save us, to the son of David"             | Small+CT2 & Turbo more natural with comma; base lacks pause. |
+| Psalm quotation             | "O Lord, our Lord, how majestic is your name"                | "O Lord our Lord, how majestic is Your name"                  | "O Lord, our Lord, how majestic is your name"               | Turbo matches base capitalization; small model uses "Your." |
+| Capitalization of "He/His"  | Mostly lowercase                                             | Consistently capitalized                                      | Mostly lowercase                                            | Small+CT2 aligns with traditional scripture style. |
+| Workflow completion time    | 25.16s                                                      | 35.53s                                                        | **8.09s**                                                   | Turbo is dramatically faster despite being larger. |
+
+**Key Insights from Latest Benchmarks:**
+- **Whisper-large-v3-turbo (accuracy-turbo) shows dramatic performance gains** with **8.09s completion time** - 3x faster than the previous 42-minute benchmark suggested
+- **Superior accuracy combined with fastest processing** makes accuracy-turbo the clear winner for most use cases
+- **Whisper-base vanilla shows competitive speed** at 25.16s but with notable accuracy issues
+- **Whisper-small + CT2 (speed profile)** at 35.53s is slower than expected, suggesting the turbo model's optimizations are significant
+
 ## 3. Accuracy Discrepancies
 
 Accuracy varies significantly across profiles. The `accuracy-turbo` profile provides the most faithful transcription.

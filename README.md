@@ -48,22 +48,6 @@
 🤖 Custom Model Fine-tuning     🔄 Workflow Automation
 ```
 
-## 🚀 Core Features
-
-### 🎵 Media Processing
-- **Audio/Video Conversion**: Transform between formats with customizable codecs
-- **Transcription & Translation**: Convert speech to text in multiple languages
-- **Video Captioning**: Add professional captions with customizable styling
-- **Media Concatenation**: Combine multiple files seamlessly
-- **Silence Detection**: Identify and process silent segments
-- **Metadata Extraction**: Retrieve comprehensive media information
-
-### ⚡ Advanced Capabilities
-- **Web Screenshots**: Capture web pages with device emulation
-- **Python Code Execution**: Run custom processing scripts remotely
-- **FFmpeg Integration**: Access advanced media manipulation
-- **Cloud Storage**: Direct integration with S3, GCS, and Dropbox
-
 ## 🔐 Security Features
 
 ### 🔑 Authentication & Authorization

@@ -10,9 +10,12 @@ This guide provides data-driven recommendations for configuring Sync Scribe Stud
 
 | Use Case | Profile | Model | Hardware | Speed | Accuracy | Best For |
 |----------|---------|-------|----------|-------|----------|----------|
+| **🥇 GPU Cloud Production** | `accuracy-turbo` | `large-v3-turbo` | GPU | **~8.09s*** | ⭐⭐⭐⭐⭐ | **RECOMMENDED for GPU endpoints** |
 | **Professional/Formal** | `accuracy-turbo` | `large-v3-turbo` | GPU | ~69s for 42min | ⭐⭐⭐⭐⭐ | Sermons, lectures, legal |
 | **General Purpose** | `speed` | `small` | GPU | ~60s for 42min | ⭐⭐⭐⭐ | Podcasts, interviews |
 | **Budget/CPU Only** | Not Recommended | - | - | - | - | Use cloud GPU instead |
+
+*Latest benchmark shows dramatically improved performance with accuracy-turbo profile
 
 #### For Short-Form Content (< 10 minutes)
 
@@ -55,21 +58,42 @@ This guide provides data-driven recommendations for configuring Sync Scribe Stud
 
 ### 📊 Performance Comparison Matrix
 
-#### Processing Speed (42-minute audio)
+#### Processing Speed (Latest benchmarks)
 ```
-🥇 speed (GPU):        ~60s  (100% baseline)
-🥈 accuracy-turbo:     ~69s  (+15% slower, much higher accuracy)
-🥉 OpenAI Whisper base: ~85s  (+42% slower, much lower accuracy)
-❌ accuracy (GPU):     ~184s (+207% slower, unreliable)
+🥇 accuracy-turbo:     ~8.09s  (NEW WINNER - fastest + most accurate)
+🥈 OpenAI Whisper base: ~25.16s (+211% slower, lower accuracy) 
+🥉 speed (GPU):        ~35.53s (+339% slower than turbo)
+❌ accuracy (GPU):     ~184s  (+2175% slower, unreliable)
 ```
 
 #### Accuracy Ranking (Formal content)
 ```
-🥇 accuracy-turbo:  ⭐⭐⭐⭐⭐  (Best formal language)
+🥇 accuracy-turbo:  ⭐⭐⭐⭐⭐  (Best formal language + fastest)
 🥈 speed:           ⭐⭐⭐⭐     (Good, more casual)
 🥉 OpenAI Whisper base: ⭐⭐         (Significant errors)
 ❌ accuracy:        ⭐           (Repetition issues)
 ```
+
+### 🌐 Deployment-Specific Recommendations
+
+#### 📱 GPU-Available Cloud Endpoints (RECOMMENDED)
+**For Cloud Run, AWS Lambda with GPU, or dedicated GPU instances:**
+```env
+ASR_PROFILE=accuracy-turbo  # RECOMMENDED for GPU deployments
+ASR_DEVICE=auto            # Auto-detects CUDA
+ASR_COMPUTE_TYPE=auto      # Optimizes for GPU (float16)
+```
+**Why:** Latest benchmarks show `accuracy-turbo` is both the **fastest** (8.09s) and **most accurate** profile available.
+
+#### 💻 CPU-Only Deployments (Fallback)
+**For cost-sensitive or CPU-only environments:**
+```env
+# Default settings work well - no configuration needed
+ASR_PROFILE=speed    # (default - optimized for CPU)
+ASR_DEVICE=auto      # Auto-detects available hardware
+ASR_COMPUTE_TYPE=auto # Optimizes for CPU (int8)
+```
+**Why:** CPU deployments should use `speed` profile with automatic hardware detection for best compatibility.
 
 ### 🛠️ Configuration Examples
 
