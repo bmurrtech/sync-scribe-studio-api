@@ -57,23 +57,23 @@ PROFILE_CONFIGS = {
     },
     'accuracy': {
         'model_id': 'openai/whisper-large-v3',  # Use full large-v3 for maximum fidelity
-        'beam_size': 3,
-        'best_of': 5,
-        'temperature': 0.0,
+        'beam_size': 1,  # Reduced to prevent repetitive solutions
+        'best_of': 1,  # Reduced to prevent repetitive solutions
+        'temperature': 0.2,  # Increased for diversity to reduce repetition
         'batch_size_cpu': 2,
-        'batch_size_gpu': 8,  # Conservative for large model VRAM usage
-        'vad_min_silence_ms': 500,  # Conservative silence detection
-        'description': 'Maximum fidelity using full whisper-large-v3, requires 10-12GB VRAM'
+        'batch_size_gpu': 4,  # Reduced for long-form content to prevent context confusion
+        'vad_min_silence_ms': 900,  # Even more conservative for long-form content
+        'description': 'Maximum fidelity with repetition control'
     },
     'accuracy-turbo': {
         'model_id': 'openai/whisper-large-v3-turbo',  # Fast + accurate
-        'beam_size': 2,  # Slightly reduced for speed
-        'best_of': 3,  # Reduced for faster processing
-        'temperature': 0.0,
+        'beam_size': 1,  # Reduced to prevent repetitive solutions
+        'best_of': 1,  # Reduced to prevent repetitive solutions
+        'temperature': 0.2,  # Increased for diversity to reduce repetition
         'batch_size_cpu': 3,
-        'batch_size_gpu': 16,  # Higher batch for speed
-        'vad_min_silence_ms': 350,  # Faster VAD processing
-        'description': 'Maximum speed with large-v3-turbo, best of both worlds'
+        'batch_size_gpu': 8,  # Reduced for long-form content to prevent context confusion
+        'vad_min_silence_ms': 700,  # More aggressive silence detection for long-form
+        'description': 'Speed with reduced repetition for long-form'
     },
     'balanced': {
         'model_id': 'openai/whisper-small',
