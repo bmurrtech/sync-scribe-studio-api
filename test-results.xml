@@ -1,1 +1,43 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.290" timestamp="2025-08-16T18:18:11.354921-04:00" hostname="Bens-MBP.lan"><testcase classname="tests.v1.gen.test_image_route.TestImageGenerationRoute" name="test_image_gen_route_not_found_when_disabled" time="0.010" /></testsuite></testsuites>
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="5" failures="0" skipped="0" tests="5" time="0.180" timestamp="2025-08-23T13:14:21.258300-04:00" hostname="Mac.lan"><testcase classname="" name="tests.asr.test_asr_transcribe" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/bmurrtech/Documents/Code/sync-scribe-studio-api/tests/asr/test_asr_transcribe.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.13/3.13.3_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/asr/test_asr_transcribe.py:14: in &lt;module&gt;
+    import numpy as np
+E   ModuleNotFoundError: No module named 'numpy'</error></testcase><testcase classname="" name="tests.fixtures.test_audio" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/bmurrtech/Documents/Code/sync-scribe-studio-api/tests/fixtures/test_audio.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.13/3.13.3_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/fixtures/test_audio.py:7: in &lt;module&gt;
+    import numpy as np
+E   ModuleNotFoundError: No module named 'numpy'</error></testcase><testcase classname="" name="tests.test_media_endpoint" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/bmurrtech/Documents/Code/sync-scribe-studio-api/tests/test_media_endpoint.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.13/3.13.3_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_media_endpoint.py:10: in &lt;module&gt;
+    import jsonschema
+E   ModuleNotFoundError: No module named 'jsonschema'</error></testcase><testcase classname="" name="tests.test_security_unit" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/bmurrtech/Documents/Code/sync-scribe-studio-api/tests/test_security_unit.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.13/3.13.3_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_security_unit.py:17: in &lt;module&gt;
+    from security import require_api_key, rate_limit, _get_client_ip, _get_rate_limit_key
+security.py:25: in &lt;module&gt;
+    from flask import Request, Response, request, jsonify
+E   ModuleNotFoundError: No module named 'flask'</error></testcase><testcase classname="" name="tests.test_toolkit_endpoint" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/bmurrtech/Documents/Code/sync-scribe-studio-api/tests/test_toolkit_endpoint.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.13/3.13.3_1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_toolkit_endpoint.py:11: in &lt;module&gt;
+    import jsonschema
+E   ModuleNotFoundError: No module named 'jsonschema'</error></testcase></testsuite></testsuites>
