@@ -17,7 +17,8 @@
 from flask import Blueprint, current_app
 from app_utils import validate_payload, queue_task_wrapper
 import logging
-from services.v1.media.convert.audio_to_m4b import process_audio_to_m4b
+# audio_to_m4b route is kept for backward compatibility but delegates to the canonical m4a implementation
+from services.v1.media.convert.m4a import process_audio_to_m4a as process_audio_to_m4b
 from services.authentication import authenticate
 from services.cloud_storage import upload_file
 import os
