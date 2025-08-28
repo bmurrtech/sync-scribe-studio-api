@@ -6,7 +6,6 @@
 
 - **🎯 Superior Accuracy**: Proper phrase recognition ("hallowed be" vs "hall of be"), professional formality preserved
 - **⚡ 42% Faster**: ~60s vs ~85s on 42-minute audio compared to legacy solutions  
-- **🚫 No Glitches**: Reliable output without repetition artifacts or nonsensical words
 - **⚙️ Self-Hosted**: Complete control, no API limits, eliminate subscription costs
 - **📈 100x Real-Time**: Process 42 minutes of audio in ~69 seconds
 
