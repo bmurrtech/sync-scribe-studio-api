@@ -29,8 +29,11 @@ Note: Cover art embedding and chapter handling are left for Phase 2 (more comple
 import os
 import subprocess
 import logging
+import threading
+import time
 from services.file_management import download_file
 from config import LOCAL_STORAGE_PATH
+from app_utils import log_job_status
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -113,9 +116,91 @@ def process_audio_to_m4a(media_url, job_id, metadata=None, audio_options=None, w
     logger.info(f"Job {job_id}: Running ffmpeg command: {' '.join(cmd)}")
 
     try:
-        completed = subprocess.run(cmd, check=True, capture_output=True)
-        logger.info(f"Job {job_id}: ffmpeg completed successfully: stdout={completed.stdout[:200]} stderr={completed.stderr[:200]}")
-
+        # Allow configurable timeout via environment variable or default (900s)
+        import os as _os
+        timeout_seconds = int(_os.environ.get('AUDIO_CONVERT_TIMEOUT_SEC', '900'))
+ 
+        # Run ffmpeg with progress output to stdout so we can parse progress updates
+        progress_cmd = list(cmd) + ["-progress", "pipe:1", "-nostats"]
+        logger.info(f"Job {job_id}: Running ffmpeg with progress: {' '.join(progress_cmd)}")
+ 
+        process = subprocess.Popen(
+            progress_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1
+        )
+ 
+        # Thread to parse progress lines from ffmpeg stdout and log job status
+        def _parse_progress_lines(stdout_stream):
+            buffer = {}
+            for raw_line in stdout_stream:
+                line = raw_line.strip()
+                if line == "":
+                    # End of a progress block; process collected keys
+                    if buffer:
+                        # Build a minimal progress payload
+                        try:
+                            out_time_ms = int(buffer.get("out_time_ms", "0"))
+                            progress_seconds = out_time_ms / 1000000.0
+                        except Exception:
+                            progress_seconds = None
+                        progress_payload = {
+                            "progress": buffer.get("progress"),
+                            "out_time_ms": buffer.get("out_time_ms"),
+                            "time_seconds": progress_seconds,
+                            "speed": buffer.get("speed")
+                        }
+                        # Log job status (non-blocking, write to job status file)
+                        try:
+                            log_job_status(job_id, {
+                                "job_status": "processing",
+                                "job_id": job_id,
+                                "progress": progress_payload,
+                                "response": None
+                            })
+                        except Exception as e:
+                            logger.warning(f"Job {job_id}: Failed to log progress: {e}")
+                        buffer = {}
+                    continue
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    buffer[k.strip()] = v.strip()
+ 
+        progress_thread = threading.Thread(target=_parse_progress_lines, args=(process.stdout,))
+        progress_thread.daemon = True
+        progress_thread.start()
+ 
+        # Monitor process with timeout
+        start_time = time.time()
+        while True:
+            ret = process.poll()
+            if ret is not None:
+                break
+            elapsed = time.time() - start_time
+            if elapsed > timeout_seconds:
+                logger.error(f"Job {job_id}: FFmpeg exceeded timeout ({timeout_seconds}s), terminating")
+                process.terminate()
+                try:
+                    process.wait(5)
+                except Exception:
+                    process.kill()
+                raise Exception(f"FFmpeg conversion timed out after {timeout_seconds} seconds")
+            time.sleep(1)
+ 
+        # Capture remaining output
+        try:
+            stdout, stderr = process.communicate(timeout=5)
+        except Exception:
+            stdout, stderr = "", ""
+ 
+        if process.returncode != 0:
+            stderr_text = stderr or ""
+            raise subprocess.CalledProcessError(process.returncode, progress_cmd, output=stdout, stderr=stderr_text)
+ 
+        logger.info(f"Job {job_id}: ffmpeg completed successfully (returncode 0).")
+ 
         # Remove input file to save space
         try:
             if os.path.exists(input_filename):
@@ -123,16 +208,28 @@ def process_audio_to_m4a(media_url, job_id, metadata=None, audio_options=None, w
                 logger.info(f"Job {job_id}: Removed input file {input_filename}")
         except Exception as cleanup_err:
             logger.warning(f"Job {job_id}: Failed to remove input file: {cleanup_err}")
-
+ 
         # Verify output exists
         if not os.path.exists(output_path):
             raise FileNotFoundError(f"Output file {output_path} not found after conversion")
-
+ 
         return output_path
 
     except subprocess.CalledProcessError as cpe:
-        stderr = cpe.stderr.decode("utf-8", errors="ignore") if cpe.stderr else str(cpe)
+        # Defensive handling: mocks may produce CalledProcessError with None fields
+        stderr = None
+        try:
+            if getattr(cpe, "stderr", None):
+                stderr = cpe.stderr.decode("utf-8", errors="ignore") if isinstance(cpe.stderr, (bytes, bytearray)) else str(cpe.stderr)
+        except Exception:
+            stderr = None
+
+        if not stderr:
+            rc = getattr(cpe, "returncode", None)
+            stderr = f"FFmpeg returned code {rc}"
+
         logger.error(f"Job {job_id}: FFmpeg error: {stderr}")
+
         # Attempt to clean up
         if os.path.exists(input_filename):
             try:
@@ -144,6 +241,7 @@ def process_audio_to_m4a(media_url, job_id, metadata=None, audio_options=None, w
                 os.remove(output_path)
             except Exception:
                 pass
+
         raise Exception(f"FFmpeg conversion failed: {stderr}")
 
     except Exception as e:
